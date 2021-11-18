@@ -1,12 +1,20 @@
 \chapter{Achtergrond}
 \label{chap:rel_work}
 
-Dit hoofdstuk bevat een overzicht van belangrijke achtergrondinformatie die doorheen de rest van deze scriptie gebruikt wordt. We starten met de overgang van GPUs van een hulpmiddel voor grafisch intensieve toepassingen naar een \textit{general purpose framework} waarin ze momenteel vaak gebruikt worden. Daarnaast zien we hoe een \textit{high level} programmeertaal zoals Julia aan de hand van een \textit{GPU package} abstracties kan invoeren om de efficiëntie van een programmeur te verbeteren. 
+Dit hoofdstuk bevat een overzicht van belangrijke achtergrondinformatie die doorheen de rest van deze scriptie gebruikt wordt. Eerst, een overzicht van een aantal belangrijke technieken rond lineaire afbeeldingsherkenning die geleid hebben tot de evolutie van neurale netwerken (NNs) en convolutionele neurale netwerken (CNNs)
 
-\section{General purpose GPU}
+\section{Machine learning en afbeeldingsclassificatie}
+
+\section{Artificiële neurale netwerken}
+\subsection{Principes van neurale netwerken}
+\subsection{Diepe neurale netwerken}
+\subsection{Convolutionele neurale netwerken}
+\section{Transfer learning}
+
+\section{Afbeeldings primitieven}
 \label{sec:related_work}
 
-Om aan hedendaagse computationele vereisten te voldoen, zoeken hard- en softwareontwikkelaars naar oplossingen via gespecialiseerde processoren. Zogenaamde \textit{hardware accelerators} zijn geoptimaliseerd voor specifieke taken (in het geval van GPUs, parallelle verwerking) en hebben voor die taken een betere performantie dan sequentiële processoren die voldoen aan meer generieke vereisten \cite{Besard_2019}. GPUs zijn origineel ontwikkeld om het \textit{rendering} proces van afbeeldingen en 3D scènes (voor onder andere videospellen) te versnellen. De nodige berekeningen zijn van nature \textit{floating-point} intensief en de grote \textit{throughput} door de parallelle verwerking maken GPUs interessant voor niet grafische toepassingen \cite{Springer2013}. 
+In een later hoofdstuk wordt er getracht om bewegingen te detecteren en extraheren uit videomateriaal. Fundamenteel gezien is een video een reeks afbeeldingen die erg kort na elkaar genomen zijn. Het aantal van die afbeeldingen is gegeven door de \textit{frames per second (FPS)} van de video.
 
 \subsection{General purpose programming frameworks}
 \label{subsec:gpp_frameworks}
