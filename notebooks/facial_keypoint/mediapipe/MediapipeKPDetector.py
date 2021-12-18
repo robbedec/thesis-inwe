@@ -2,6 +2,10 @@ import cv2
 import mediapipe as mp
 import time
 
+from dlib import get_frontal_face_detector
+from dlib import shape_predictor
+from dlib import rectangle
+
 class MediapipeKPDetector():
 
     def __init__(self, staticMode=False, maxFaces=2, refine_landmarks=True, minDetectionCon=0.5):
@@ -118,6 +122,12 @@ class MediapipeKPDetector():
 
         return img, faces
 
+class MeeShapePredictor():
+
+    def __init__(self):
+        pass
+
+# Sample usage
 def main():
     use_video = False
 
