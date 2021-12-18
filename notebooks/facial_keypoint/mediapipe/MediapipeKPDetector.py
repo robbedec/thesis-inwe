@@ -122,11 +122,6 @@ class MediapipeKPDetector():
 
         return img, faces
 
-class MeeShapePredictor():
-
-    def __init__(self):
-        pass
-
 # Sample usage
 def main():
     use_video = False
