@@ -1,4 +1,5 @@
 data/
+*/.vscode/
 
 # Jupyter notebook
 .ipynb_checkpoints
