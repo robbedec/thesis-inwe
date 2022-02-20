@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./src/keypoints/detectors",
+        "./src/utils"
+    ]
+}
