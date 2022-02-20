@@ -3,7 +3,7 @@ from math import sqrt
 def dist_point_to_line(slope, slope_point, point):
     """
     Returns the distance from a point to a line given by
-    the its slope and a point that lies on the line.
+    its slope and a point that lies on the line.
     """
 
     sx, sy = slope_point
@@ -38,3 +38,6 @@ def mean_position(indices, face):
 
 def round_tuple(t):
     return tuple(map(lambda x: isinstance(x, float) and int(x) or x, t))
+
+def intersection_lines(slope0, point0, slope1, point1):
+    #https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
