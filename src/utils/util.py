@@ -1,3 +1,5 @@
+import numpy as np
+import cv2
 from math import sqrt
 
 def dist_point_to_line(slope, slope_point, point):
@@ -9,11 +11,14 @@ def dist_point_to_line(slope, slope_point, point):
     sx, sy = slope_point
     px, py = point
 
-    a = 1
-    b = -slope
-    c = (slope * sx) - sy
+    if np.isinf(slope):
+        return abs(sx - px)
+    else:
+        a = 1
+        b = -slope
+        c = (slope * sx) - sy
 
-    return abs(a * px + b * py + c) / sqrt(a**2 + b**2)
+        return abs(a * px + b * py + c) / sqrt(a**2 + b**2)
 
 def dist_point_to_point(p0, p1):
     x0, y0 = p0
@@ -41,3 +46,19 @@ def round_tuple(t):
 
 def intersection_lines(slope0, point0, slope1, point1):
     #https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
+    return
+
+def resize_with_aspectratio(image, width=None, height=None, inter=cv2.INTER_AREA):
+    dim = None
+    (h, w) = image.shape[:2]
+
+    if width is None and height is None:
+        return image
+    if width is None:
+        r = height / float(h)
+        dim = (int(w * r), height)
+    else:
+        r = width / float(w)
+        dim = (width, int(h * r))
+
+    return cv2.resize(image, dim, interpolation=inter)

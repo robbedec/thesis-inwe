@@ -1,8 +1,7 @@
 import cv2
 import sys
+import numpy as np
 from enum import Enum
-
-from matplotlib.pyplot import draw
 
 sys.path.append('../keypoints/detectors')
 sys.path.append('../utils')
@@ -23,6 +22,7 @@ class StaticAnalyzer():
         self._detector = MediapipeKPDetector(maxFaces=1)
 
         if img == None:
+            # Load default image
             self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
         else:
@@ -42,7 +42,7 @@ class StaticAnalyzer():
 
         self._face = self._faces[0]
 
-    def estimate_symmetry_line(self, draw=True):
+    def estimate_symmetry_line(self, draw=False):
         """
         Finds the equation of the line that connects the two inner corners of
         the eyes and calculates the perpendicular line that passes through the
@@ -57,14 +57,14 @@ class StaticAnalyzer():
         img_x, img_y, _ = self._img.shape
 
         # Draw line through the inside eye corners (points 133 & 362 for unfiltered keypoints or 39 & 42)
-        (x1, y1) = self._faces[0][133]
-        (x2, y2) = self._faces[0][362]
+        (x1, y1) = self._face[133]
+        (x2, y2) = self._face[362]
 
         # Point 168 is halfway between the eyes
         x_mid, y_mid = ((x1 + x2) / 2, (y1 + y2) / 2)
 
         horizontal_slope = (y2 - y1) / (x2 - x1)
-        vertical_slope = x_mid if horizontal_slope == 0 else -1 / horizontal_slope
+        vertical_slope = np.inf if horizontal_slope == 0 else -1 / horizontal_slope
 
 
         if draw:
@@ -72,7 +72,7 @@ class StaticAnalyzer():
             horizontal_line = lambda x: (horizontal_slope) * (x - x1) + y1
 
             # Form x=f(y), be careful when horizontal slope = 0
-            vertical_line = lambda y: ((y - y_mid) / vertical_slope) + x_mid
+            vertical_line = lambda y: x_mid if np.isinf(vertical_slope) else ((y - y_mid) / vertical_slope) + x_mid
 
             cv2.line(img=self._img, pt1=(0, round(horizontal_line(0))), pt2=(img_x, round(horizontal_line(img_x))), color=(0, 255, 0), thickness=1)
             cv2.line(img=self._img, pt1=(round(vertical_line(0)), 0), pt2=(round(vertical_line(img_y)), img_y), color=(0, 255, 0), thickness=1)
@@ -111,7 +111,7 @@ class StaticAnalyzer():
         D_MLEB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MLEB)
         D_MREB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MREB)
 
-        # Door te vergelijken met de intercept kunnen we ook meten als de wenkbrouw naar schui
+        # Door te vergelijken met de intercept kunnen we ook meten als de wenkbrouw naar schuin
         # boven trekt of niet
         D_MLEB_intercept = dist_point_to_point(intercept, MLEB)
         D_MREB_intercept = dist_point_to_point(intercept, MREB)
@@ -138,12 +138,12 @@ class StaticAnalyzer():
     def quantify_mouth(self, draw=False):
         corner_left = self._face[61]
         corner_right = self._face[291]
-        chin = self._face[152]
 
         # Maybe better to use a point on the symmetry line to calculate the angles instead
         # of the endpoint of the chin.
         # For now use the projection of the chinpoint on the symmetry line
-        chin_corrected = 
+        chin = self._face[152]
+        chin_corrected = 0
 
         if draw:
             cv2.circle(img=self._img, center=corner_left, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
@@ -162,13 +162,13 @@ class StaticAnalyzer():
     @img.setter
     def img(self, value):
         print("setter of x called")
-        self._img = value
+        self.load_img(value)
 
 
 def main():
     analyzer = StaticAnalyzer()
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg')
-    analyzer.estimate_symmetry_line()
+    analyzer.estimate_symmetry_line(draw=True)
     analyzer.quantify_eyebrows(draw=True)
     analyzer.quantify_mouth(draw=True)
 
