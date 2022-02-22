@@ -1,13 +1,9 @@
 import cv2
-import sys
 import numpy as np
 from enum import Enum
 
-sys.path.append('../keypoints/detectors')
-sys.path.append('../utils')
-
-from MediapipeKPDetector import MediapipeKPDetector
-from util import dist_point_to_line, dist_point_to_point, mean_position, round_tuple
+from keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
+from utils.util import dist_point_to_line, dist_point_to_point, mean_position, round_tuple
 
 class Measurements(Enum):
     Eyebrows = 1

@@ -2,9 +2,8 @@ import sys
 import cv2
 import time
 
-sys.path.append('../detectors')
-from MediapipeKPDetector import MediapipeKPDetector
-from MeeShapeDetector import MeeShapeDetector
+from keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
+from keypoints.detectors.MeeShapeDetector import MeeShapeDetector
 
 def ResizeWithAspectRatio(image, width=None, height=None, inter=cv2.INTER_AREA):
     dim = None

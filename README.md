@@ -10,3 +10,11 @@ Template for a masters thesis at Ghent University Faculty of Engineering and Arc
 - Example: [VOORBEELD.pdf](./VOORBEELD.pdf)
 
 **Make sure to set lualatex or xelatex as latex engine!**
+
+# Install instructions
+
+This project is currently installed with
+```bash
+# Executed in the src directory
+pip install -m .
+```
