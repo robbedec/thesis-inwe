@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 from enum import Enum
 
-from keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
-from utils.util import dist_point_to_line, dist_point_to_point, mean_position, round_tuple
+from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
+from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, round_tuple
 
 class Measurements(Enum):
     Eyebrows = 1
