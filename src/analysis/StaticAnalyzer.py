@@ -20,7 +20,7 @@ class StaticAnalyzer():
 
         if img == None:
             # Load default image
-            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
+            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
         else:
             self.load_img(img)
