@@ -1,13 +1,10 @@
 import cv2
 import numpy as np
-from enum import Enum
 from math import asin, pi
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
-from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio 
-
-class Measurements(Enum):
-    Eyebrows = 1
+from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio, resize_with_aspectratio 
+from src.analysis.measurements import Measurements
 
 class StaticAnalyzer():
 
@@ -20,8 +17,8 @@ class StaticAnalyzer():
 
         if img == None:
             # Load default image
-            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
+            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
+            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
         else:
             self.load_img(img)
 
@@ -106,21 +103,25 @@ class StaticAnalyzer():
         # The ratio should be 1 if both distances are equal
         # This could also be used in when moving the eyebrow as an indication that
         # one eyebrow is moving but the other one isn't.
-        ratio1 = ratio(D_EB_EYE_L, D_EB_EYE_R)
-        print('Difference between distance to eyebrow centroid and eye centroid: %.2f' % ratio1)
+        EB_EYE_ratio = ratio(D_EB_EYE_L, D_EB_EYE_R)
+        print('Difference between distance to eyebrow centroid and eye centroid: %.2f' % EB_EYE_ratio)
 
         # Second metric: distance between average eyebrow points and the vertical line
         # across the eyes
 
         slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=False)
 
-        D_MLEB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MLEB)
-        D_MREB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MREB)
+        D_LEB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MLEB)
+        D_REB_horizontal = dist_point_to_line(slope=slope_h, slope_point=intercept, point=MREB)
+
+        D_EB_horizontal_ratio = ratio(D_LEB_horizontal, D_REB_horizontal)
 
         # Door te vergelijken met de intercept kunnen we ook meten als de wenkbrouw naar schuin
         # boven trekt of niet
-        D_MLEB_intercept = dist_point_to_point(intercept, MLEB)
-        D_MREB_intercept = dist_point_to_point(intercept, MREB)
+        D_LEB_intercept = dist_point_to_point(intercept, MLEB)
+        D_REB_intercept = dist_point_to_point(intercept, MREB)
+
+        D_EB_intercept_ratio = ratio(D_LEB_intercept, D_REB_intercept)
 
         if draw:
             # Todo: option to draw all lines that were measured on the image 
@@ -140,6 +141,8 @@ class StaticAnalyzer():
             # Draw lines between mean eyebrow and intercept
             cv2.line(img=self._img, pt1=round_tuple(intercept), pt2=round_tuple(MLEB), color=(0, 255, 0), thickness=1)
             cv2.line(img=self._img, pt1=round_tuple(intercept), pt2=round_tuple(MREB), color=(0, 255, 0), thickness=1)
+        
+        return EB_EYE_ratio, D_EB_horizontal_ratio, D_EB_intercept_ratio
     
     def quantify_mouth(self, draw=False):
         slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=False)
@@ -182,9 +185,21 @@ class StaticAnalyzer():
             # Draw lines between chinpoint and corners of the mouth 
             cv2.line(img=self._img, pt1=corner_left, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
             cv2.line(img=self._img, pt1=corner_right, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
+        
+        return ratio(area_left, area_right)
     
     def resting_symmetry(self):
-        return
+        measurements_results = {}
+
+        mouth_area_ratio = self.quantify_mouth()
+        eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows()
+
+        measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
+        measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
+        measurements_results[Measurements.EYEBROW_HORIZONTAL_DISTANCE] = eyebrow_horizontal_ratio
+        measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
+
+        return measurements_results
 
     
     @property
@@ -201,6 +216,7 @@ def main():
     analyzer = StaticAnalyzer()
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
     analyzer.estimate_symmetry_line(draw=True)
     analyzer.quantify_eyebrows(draw=False)
     analyzer.quantify_mouth(draw=True)
