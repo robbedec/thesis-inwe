@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 from enum import Enum
+from math import asin, pi
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
-from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, round_tuple
+from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio 
 
 class Measurements(Enum):
     Eyebrows = 1
@@ -38,11 +39,18 @@ class StaticAnalyzer():
 
         self._face = self._faces[0]
 
-    def estimate_symmetry_line(self, draw=False):
+    def estimate_symmetry_line(self, use_iris_estimate=True, use_nose_tip=True, draw=False):
         """
         Finds the equation of the line that connects the two inner corners of
         the eyes and calculates the perpendicular line that passes through the
         center of the first line 
+
+        - use_iris_estimate: Will use the centroid of the eye keypoints to approximate the
+                             position of the iris and will fit the line through it. If false
+                             the inner corners of the eyes are used.
+
+        - use_nose_tip: Use the nose tip to fit the perpendiculare line. If false the middle
+                        of the line segment between the eyes is used.
 
         Returns: The slope of the line that connects both eyes and of theperpendicular line
                  together with the intersection point between both line. This provides enough
@@ -53,11 +61,12 @@ class StaticAnalyzer():
         img_x, img_y, _ = self._img.shape
 
         # Draw line through the inside eye corners (points 133 & 362 for unfiltered keypoints or 39 & 42)
-        (x1, y1) = self._face[133]
-        (x2, y2) = self._face[362]
+        # LEC en REC
+        (x1, y1) = mean_position([468, 469, 470, 471, 472], self._face) if use_iris_estimate else self._face[133]
+        (x2, y2) = mean_position([473, 474, 475, 476, 477], self._face) if use_iris_estimate else self._face[362]
 
         # Point 168 is halfway between the eyes
-        x_mid, y_mid = ((x1 + x2) / 2, (y1 + y2) / 2)
+        x_mid, y_mid = self._face[1] if use_nose_tip else ((x1 + x2) / 2, (y1 + y2) / 2)
 
         horizontal_slope = (y2 - y1) / (x2 - x1)
         vertical_slope = np.inf if horizontal_slope == 0 else -1 / horizontal_slope
@@ -97,7 +106,8 @@ class StaticAnalyzer():
         # The ratio should be 1 if both distances are equal
         # This could also be used in when moving the eyebrow as an indication that
         # one eyebrow is moving but the other one isn't.
-        print(D_EB_EYE_L / D_EB_EYE_R)
+        ratio1 = ratio(D_EB_EYE_L, D_EB_EYE_R)
+        print('Difference between distance to eyebrow centroid and eye centroid: %.2f' % ratio1)
 
         # Second metric: distance between average eyebrow points and the vertical line
         # across the eyes
@@ -132,23 +142,49 @@ class StaticAnalyzer():
             cv2.line(img=self._img, pt1=round_tuple(intercept), pt2=round_tuple(MREB), color=(0, 255, 0), thickness=1)
     
     def quantify_mouth(self, draw=False):
+        slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=False)
+
         corner_left = self._face[61]
         corner_right = self._face[291]
 
         # Maybe better to use a point on the symmetry line to calculate the angles instead
         # of the endpoint of the chin.
-        # For now use the projection of the chinpoint on the symmetry line
+        # Chin corrected is the projection of the chin point on the symmetry line
         chin = self._face[152]
-        chin_corrected = 0
+        chin_corrected = orthogonal_projection(slope=slope_v, slope_point=intercept, point=chin)
+
+        # Bij de mond in het misschien beter om de oppervlakte te berekenen van de driehoek die gevormd
+        # wordt door de kin, mondhoek en projectie vd mondhoek op de symmetrieas.
+
+        base_intersection_left = orthogonal_projection(slope=slope_v, slope_point=intercept, point=corner_left)
+        area_left = (dist_point_to_point(p0=base_intersection_left, p1=corner_left) * dist_point_to_point(p0=base_intersection_left, p1=chin_corrected)) / 2
+
+        base_intersection_right = orthogonal_projection(slope=slope_v, slope_point=intercept, point=corner_right)
+        area_right = (dist_point_to_point(p0=base_intersection_right, p1=corner_right) * dist_point_to_point(p0=base_intersection_right, p1=chin_corrected)) / 2
+
+        print('Mouth area: left = %.2f right = %.2f and ratio = %.2f' % (area_left, area_right, ratio(area_left, area_right)))
+
+        # Hoeken geven soms een bereik error
+        #angle_left = asin(dist_point_to_line(slope=slope_v, slope_point=intercept, point=corner_left) / dist_point_to_point(corner_left, chin_corrected)) 
+        #angle_right = asin(dist_point_to_line(slope=slope_v, slope_point=intercept, point=corner_right) / dist_point_to_point(corner_right, chin_corrected)) 
+
+        #print('Mouth angles (radians): left = %.2f, right = %.2f (in radians)' % (angle_left, angle_right))
+        #print('Mouth angles (degrees): left = %.2f, right = %.2f (in radians)' % (angle_left * (180 / pi), angle_right * (180 / pi)))
 
         if draw:
+            rounded_chin_corrected = round_tuple(chin_corrected)
+
             cv2.circle(img=self._img, center=corner_left, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
             cv2.circle(img=self._img, center=corner_right, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
             cv2.circle(img=self._img, center=chin, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=rounded_chin_corrected, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
 
             # Draw lines between chinpoint and corners of the mouth 
-            cv2.line(img=self._img, pt1=corner_left, pt2=chin, color=(0, 255, 0), thickness=1)
-            cv2.line(img=self._img, pt1=corner_right, pt2=chin, color=(0, 255, 0), thickness=1)
+            cv2.line(img=self._img, pt1=corner_left, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
+            cv2.line(img=self._img, pt1=corner_right, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
+    
+    def resting_symmetry(self):
+        return
 
     
     @property
@@ -163,9 +199,10 @@ class StaticAnalyzer():
 
 def main():
     analyzer = StaticAnalyzer()
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     analyzer.estimate_symmetry_line(draw=True)
-    analyzer.quantify_eyebrows(draw=True)
+    analyzer.quantify_eyebrows(draw=False)
     analyzer.quantify_mouth(draw=True)
 
     cv2.imshow('result', analyzer.img)

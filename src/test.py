@@ -1,5 +1,5 @@
 from math import dist
-from utils.util import dist_point_to_line
-from keypoints.detectors import MediapipeKPDetector
+import numpy as np
+from utils.util import orthogonal_projection
 
-dist_point_to_line()
+print(orthogonal_projection(5, (1, 1), (8,8)))
