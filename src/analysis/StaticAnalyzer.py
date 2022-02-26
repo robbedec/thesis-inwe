@@ -8,25 +8,29 @@ from src.analysis.measurements import Measurements
 
 class StaticAnalyzer():
 
-    def __init__(self, img=None):
+    def __init__(self, img=None, draw=False):
         """
         Throws an assertion error if no faces were detected 
         """
 
-        self._detector = MediapipeKPDetector(maxFaces=1)
+        self._detector = MediapipeKPDetector(maxFaces=1, minDetectionCon=0.4)
+        self._keypoints_by_region = self._detector.get_68KP_indices(as_dict=True)
+        self._draw = draw
 
-        if img == None:
-            # Load default image
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
-            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
-        else:
+        if type(img) == np.ndarray:
             self.load_img(img)
+        else:
+            # Load default image
+            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
+            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg'))
+            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
 
     def load_img(self, img):
         """
         Handle for loading in an image, this triggers the feature detection procedure
         and updates paramaters to ensure that other functions work correctly. 
         """
+
         self._img = img
 
         # Detect facial landmarks
@@ -160,14 +164,18 @@ class StaticAnalyzer():
 
         if draw:
             for (x, y) in points_left + points_right:
-                cv2.circle(img=self._img, center=self._face[x], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
-                cv2.circle(img=self._img, center=self._face[y], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+                # Draw points as a circle
+                # cv2.circle(img=self._img, center=self._face[x], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+                # cv2.circle(img=self._img, center=self._face[y], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+
+                # Draw points as a line
+                cv2.line(img=self._img, pt1=self._face[x], pt2=self._face[y], color=(0, 255, 0), thickness=1)
         
         return ratio(droop_avg(points_left), droop_avg(points_right))
 
     
     def quantify_mouth(self, draw=False):
-        slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=False)
+        slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=self._draw)
 
         corner_left = self._face[61]
         corner_right = self._face[291]
@@ -176,6 +184,7 @@ class StaticAnalyzer():
         # of the endpoint of the chin.
         # Chin corrected is the projection of the chin point on the symmetry line
         chin = self._face[152]
+        chin = self._face[17] # This taken the middle point of the lip
         chin_corrected = orthogonal_projection(slope=slope_v, slope_point=intercept, point=chin)
 
         # Bij de mond in het misschien beter om de oppervlakte te berekenen van de driehoek die gevormd
@@ -224,9 +233,9 @@ class StaticAnalyzer():
     def resting_symmetry(self, print_results=False):
         measurements_results = {}
 
-        mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth()
-        eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows()
-        eye_droop = self.quantify_eyes()
+        mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth(draw=self._draw)
+        eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows(draw=self._draw)
+        eye_droop = self.quantify_eyes(draw=self._draw)
 
         measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
         measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
@@ -248,19 +257,25 @@ class StaticAnalyzer():
     
     @img.setter
     def img(self, value):
-        print("setter of x called")
-        self.load_img(value)
+        # Force reinitialization of mediapipe so caches are 
+        # cleared. Ignoring existing cache leads to undefined
+        # behavior.
+        self.__init__(img=value, draw=self._draw)
 
 
 def main():
+    #test = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     analyzer = StaticAnalyzer()
+
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+
     analyzer.estimate_symmetry_line(draw=True)
-    analyzer.quantify_eyebrows(draw=True)
+    #analyzer.quantify_eyebrows(draw=True)
     analyzer.quantify_mouth(draw=True)
-    analyzer.quantify_eyes(draw=True)
+    #analyzer.quantify_eyes(draw=True)
 
     #analyzer.resting_symmetry(print_results=True)
 

@@ -15,9 +15,9 @@ DATA_PATH_FLACCID = os.path.join(DATA_PATH, 'Flaccid')
 CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements.csv'
 CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
 
-analyzer = StaticAnalyzer()
+analyzer = StaticAnalyzer(draw=True)
 
-def analyze_img(img_path, display_images=False):
+def analyze_img(img_path, display_images=True):
     try:
         analyzer.img = cv2.imread(img_path)
 
