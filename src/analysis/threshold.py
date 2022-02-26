@@ -12,8 +12,8 @@ DATA_PATH = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set'
 DATA_PATH_NORMAL = os.path.join(DATA_PATH, 'Normals')
 DATA_PATH_FLACCID = os.path.join(DATA_PATH, 'Flaccid')
 
-CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/meei_measurements.csv'
-CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/meei_measurements_processed.csv'
+CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements.csv'
+CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
 
 analyzer = StaticAnalyzer()
 
@@ -92,8 +92,18 @@ def create_file():
     df_measurements.to_csv(CSV_MEASUREMENTS_PATH)
 
 def process_file():
-    print('test')
-    return
+    df_measurements = pd.read_csv(CSV_MEASUREMENTS_PATH, index_col=0)
+    df_grouped = df_measurements.groupby('category')
+
+    df_grouped_mean = df_grouped.mean()
+    df_grouped_mean['aggregation_op'] = 'mean'
+
+    df_grouped_median = df_grouped.median()
+    df_grouped_median['aggregation_op'] = 'median'
+
+    df_result = pd.concat([df_grouped_mean, df_grouped_median])
+
+    df_result.to_csv(CSV_PROCESSED_PATH)
 
 if __name__ == '__main__':
     if not os.path.exists(CSV_MEASUREMENTS_PATH):

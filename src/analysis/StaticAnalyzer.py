@@ -197,7 +197,12 @@ class StaticAnalyzer():
 
         # Distance between the symmetry line and the middle of the top lip
         # This might not work very well because it's not a ratio.
-        dist_lip_middle = dist_point_to_line(slope=slope_v, slope_point=intercept, point=self._face[0])
+        # The alternative approach calculates the distance ratio between the midpoint and the
+        # corners of the mouth.
+
+        lip_center = self._face[0]
+        # dist_lip_middle = dist_point_to_line(slope=slope_v, slope_point=intercept, point=self._face[0])
+        dist_lip_middle = ratio(dist_point_to_point(p0=corner_left, p1=lip_center), dist_point_to_point(p0=corner_right, p1=lip_center))
 
         if draw:
             rounded_chin_corrected = round_tuple(chin_corrected)
@@ -219,7 +224,7 @@ class StaticAnalyzer():
     def resting_symmetry(self, print_results=False):
         measurements_results = {}
 
-        mouth_area_ratio, distance_lipcenter_symmetryline = self.quantify_mouth()
+        mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth()
         eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows()
         eye_droop = self.quantify_eyes()
 
@@ -228,7 +233,7 @@ class StaticAnalyzer():
         measurements_results[Measurements.EYEBROW_HORIZONTAL_DISTANCE] = eyebrow_horizontal_ratio
         measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
         measurements_results[Measurements.EYE_DROOP] = eye_droop
-        #measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_symmetryline
+        measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_ratio
 
         if print_results:
             for key, value in measurements_results.items():
