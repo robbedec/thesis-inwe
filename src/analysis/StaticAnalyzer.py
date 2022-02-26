@@ -17,7 +17,7 @@ class StaticAnalyzer():
 
         if img == None:
             # Load default image
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
+            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
             self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
         else:
             self.load_img(img)
@@ -144,6 +144,28 @@ class StaticAnalyzer():
         
         return EB_EYE_ratio, D_EB_horizontal_ratio, D_EB_intercept_ratio
     
+    def quantify_eyes(self, draw=False):
+        """
+        Quantifies droopy eyelids by calculating the distance between
+        the top and bottom eyelid. The model has two pairs of these
+        points, both are averaged. 
+
+        Returns the ratio of the eyelid distances.
+        """
+
+        points_left = [(160, 144), (158, 153)]
+        points_right = [(385, 380), (387, 373)]
+
+        droop_avg = lambda l: sum([dist_point_to_point(self._face[x], self._face[y]) for (x, y) in l]) / len(l)
+
+        if draw:
+            for (x, y) in points_left + points_right:
+                cv2.circle(img=self._img, center=self._face[x], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+                cv2.circle(img=self._img, center=self._face[y], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+        
+        return ratio(droop_avg(points_left), droop_avg(points_right))
+
+    
     def quantify_mouth(self, draw=False):
         slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=False)
 
@@ -165,7 +187,6 @@ class StaticAnalyzer():
         base_intersection_right = orthogonal_projection(slope=slope_v, slope_point=intercept, point=corner_right)
         area_right = (dist_point_to_point(p0=base_intersection_right, p1=corner_right) * dist_point_to_point(p0=base_intersection_right, p1=chin_corrected)) / 2
 
-        print('Mouth area: left = %.2f right = %.2f and ratio = %.2f' % (area_left, area_right, ratio(area_left, area_right)))
 
         # Hoeken geven soms een bereik error
         #angle_left = asin(dist_point_to_line(slope=slope_v, slope_point=intercept, point=corner_left) / dist_point_to_point(corner_left, chin_corrected)) 
@@ -174,8 +195,15 @@ class StaticAnalyzer():
         #print('Mouth angles (radians): left = %.2f, right = %.2f (in radians)' % (angle_left, angle_right))
         #print('Mouth angles (degrees): left = %.2f, right = %.2f (in radians)' % (angle_left * (180 / pi), angle_right * (180 / pi)))
 
+        # Distance between the symmetry line and the middle of the top lip
+        # This might not work very well because it's not a ratio.
+        dist_lip_middle = dist_point_to_line(slope=slope_v, slope_point=intercept, point=self._face[0])
+
         if draw:
             rounded_chin_corrected = round_tuple(chin_corrected)
+
+            # Center of the lip
+            cv2.circle(img=self._img, center=self._face[0], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
 
             cv2.circle(img=self._img, center=corner_left, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
             cv2.circle(img=self._img, center=corner_right, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
@@ -186,18 +214,25 @@ class StaticAnalyzer():
             cv2.line(img=self._img, pt1=corner_left, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
             cv2.line(img=self._img, pt1=corner_right, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
         
-        return ratio(area_left, area_right)
+        return ratio(area_left, area_right), dist_lip_middle
     
-    def resting_symmetry(self):
+    def resting_symmetry(self, print_results=False):
         measurements_results = {}
 
-        mouth_area_ratio = self.quantify_mouth()
+        mouth_area_ratio, distance_lipcenter_symmetryline = self.quantify_mouth()
         eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows()
+        eye_droop = self.quantify_eyes()
 
         measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
         measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
         measurements_results[Measurements.EYEBROW_HORIZONTAL_DISTANCE] = eyebrow_horizontal_ratio
         measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
+        measurements_results[Measurements.EYE_DROOP] = eye_droop
+        #measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_symmetryline
+
+        if print_results:
+            for key, value in measurements_results.items():
+                print('%s: %.2f' % (key.name, value))
 
         return measurements_results
 
@@ -218,8 +253,11 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
     analyzer.estimate_symmetry_line(draw=True)
-    analyzer.quantify_eyebrows(draw=False)
+    analyzer.quantify_eyebrows(draw=True)
     analyzer.quantify_mouth(draw=True)
+    analyzer.quantify_eyes(draw=True)
+
+    #analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
     cv2.waitKey(0)
