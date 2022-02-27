@@ -11,6 +11,7 @@ from src.analysis.measurements import Measurements
 DATA_PATH = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set'
 DATA_PATH_NORMAL = os.path.join(DATA_PATH, 'Normals')
 DATA_PATH_FLACCID = os.path.join(DATA_PATH, 'Flaccid')
+DATA_PATH_IMAGES = '/home/robbedec/repos/ugent/thesis-inwe/src/images'
 
 CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements.csv'
 CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
@@ -61,6 +62,31 @@ def create_file():
 
 
         df_measurements = df_measurements.append(row, ignore_index=True)
+
+    #Handle non dataset images
+    for i in range(5): 
+        for image in ['obama.jpg', 'clooney.jpeg']:
+            file_identifier = image
+            image_path = os.path.join(DATA_PATH_IMAGES, image)
+
+            result = analyze_img(image_path)
+
+            if result is None:
+                continue
+
+            row = {
+                'category': 'Normal',
+                'identifier': file_identifier + str(i),
+                'movement': 'relaxed',
+            }
+
+            # Copy metrics to the new row
+            for key, value in result.items():
+                row[key.name] = value
+
+
+            df_measurements = df_measurements.append(row, ignore_index=True)
+
 
 
     # Handle flaccids

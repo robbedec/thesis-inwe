@@ -35,10 +35,11 @@ def main():
     df_processed = df_processed[df_processed['aggregation_op'] == AGG_OP]
 
     analyzer = StaticAnalyzer(draw=True)
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_1.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid1/SevereFlaccid1_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid5/MildFlaccid5_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
 
     resting_prediction = analyzer.resting_symmetry()
     img = analyzer.img
