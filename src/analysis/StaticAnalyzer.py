@@ -254,6 +254,10 @@ class StaticAnalyzer():
     @property
     def img(self):
         return self._img
+
+    @property
+    def keypoints(self):
+        return self._face
     
     @img.setter
     def img(self, value):
