@@ -23,7 +23,7 @@ class StaticAnalyzer():
             # Load default image
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg'))
-            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_1.jpg'))
+            self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_6.jpg'))
 
     def load_img(self, img):
         """
@@ -40,7 +40,7 @@ class StaticAnalyzer():
 
         self._face = self._faces[0]
 
-    def estimate_symmetry_line(self, use_iris_estimate=True, use_nose_tip=True, draw=False):
+    def estimate_symmetry_line(self, use_iris_estimate=True, use_nose_tip=False, draw=False):
         """
         Finds the equation of the line that connects the two inner corners of
         the eyes and calculates the perpendicular line that passes through the
@@ -273,9 +273,9 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
 
     analyzer.estimate_symmetry_line(draw=True)
-    #analyzer.quantify_eyebrows(draw=True)
+    analyzer.quantify_eyebrows(draw=True)
     analyzer.quantify_mouth(draw=True)
-    #analyzer.quantify_eyes(draw=True)
+    analyzer.quantify_eyes(draw=True)
 
     #analyzer.resting_symmetry(print_results=True)
 
