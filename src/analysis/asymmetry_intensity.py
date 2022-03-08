@@ -1,13 +1,13 @@
 import pandas as pd
 import cv2
 
-from src.analysis.StaticAnalyzer import StaticAnalyzer
-from src.analysis.measurements import Measurements, FlaccidCategories
+from src.analysis.analyzer import StaticAnalyzer
+from src.analysis.enums import Measurements, FlaccidCategories
 from src.keypoints.detectors.MediapipeKPDetector import FaceRegion, MediapipeKPDetector
 from src.utils.util import resize_with_aspectratio
 
 CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
-AGG_OP = 'mean'
+AGG_OP = 'harmonic_mean'
 
 def color_mapping():
     category_color_mapping = dict()
@@ -76,8 +76,8 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid1/SevereFlaccid1_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid5/MildFlaccid5_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_6.jpg')
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid1_6.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_6.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid1_6.jpg')
 
     resting_prediction = analyzer.resting_symmetry()
     img = analyzer.img

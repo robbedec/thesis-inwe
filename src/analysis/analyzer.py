@@ -3,10 +3,11 @@ import numpy as np
 
 from math import asin, pi
 from scipy.spatial import ConvexHull
+from shapely.geometry import Polygon
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
 from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio, resize_with_aspectratio 
-from src.analysis.measurements import Measurements
+from src.analysis.enums import Measurements
 
 class StaticAnalyzer():
 
@@ -159,8 +160,8 @@ class StaticAnalyzer():
         Note that in 2D, convex_hull.volume represents the area.
         """
 
-        contour_left = [*self._mediapipe_annotations['rightEyeLower0'], *self._mediapipe_annotations['rightEyeUpper0']]
-        contour_right = [*self._mediapipe_annotations['leftEyeLower0'], *self._mediapipe_annotations['leftEyeUpper0']]
+        contour_left = [*list(reversed(self._mediapipe_annotations['rightEyeLower0'])), *self._mediapipe_annotations['rightEyeUpper0']]
+        contour_right = [*list(reversed(self._mediapipe_annotations['leftEyeLower0'])), *self._mediapipe_annotations['leftEyeUpper0']]
 
         points_contour_left = [self._face[index] for index in contour_left]
         points_contour_right = [self._face[index] for index in contour_right]
@@ -168,14 +169,17 @@ class StaticAnalyzer():
         hull_left = ConvexHull(points_contour_left)
         hull_right = ConvexHull(points_contour_right)
 
-        print('HULL: Left=%.4f and Right=%.4f' % (hull_left.volume, hull_right.volume)) 
+        # poly_left = Polygon(points_contour_left)
+        # poly_right = Polygon(points_contour_right)
 
         if draw:
             for point in points_contour_left + points_contour_right:
                 cv2.circle(img=self._img, center=point, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
 
         
+        # Oppervlakte vd polygon is quasi gelijk aan de oppervlakte van de convex hull
         return ratio(hull_left.volume, hull_right.volume)
+        #return ratio(poly_left.area, poly_right.area)
 
     
     def quantify_mouth(self, draw=False):
@@ -276,7 +280,9 @@ def main():
     analyzer = StaticAnalyzer()
 
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    
+    # Goeie afbeelding om de scores te tonen
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
 
@@ -285,7 +291,7 @@ def main():
     analyzer.quantify_mouth(draw=False)
     analyzer.quantify_eyes(draw=True)
 
-    #analyzer.resting_symmetry(print_results=True)
+    analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
     cv2.waitKey(0)

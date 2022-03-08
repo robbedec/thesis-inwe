@@ -3,13 +3,13 @@ import os
 import glob
 import cv2
 import seaborn as sns
-
-from scipy import stats
 import matplotlib.pyplot as plt
 
-from src.analysis.StaticAnalyzer import StaticAnalyzer
+from scipy import stats
+
+from src.analysis.analyzer import StaticAnalyzer
 from src.utils.util import resize_with_aspectratio
-from src.analysis.measurements import Measurements
+from src.analysis.enums import Measurements, MEEIMovements
 
 DATA_PATH = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set'
 DATA_PATH_NORMAL = os.path.join(DATA_PATH, 'Normals')
@@ -45,30 +45,8 @@ def create_file():
 
         # For now, only calculate values for faces in rest position.
         # These are annotated in each folder as XX_1.jpg.
-        image_path = os.path.join(normal_folder, file_identifier + '_1.jpg')
-
-        result = analyze_img(image_path)
-
-        if result is None:
-            continue
-
-        row = {
-            'category': 'Normal',
-            'identifier': file_identifier,
-            'movement': 'relaxed',
-        }
-
-        # Copy metrics to the new row
-        for key, value in result.items():
-            row[key.name] = value
-
-        df_measurements = df_measurements.append(row, ignore_index=True)
-
-    #Handle non dataset images
-    for i in range(1): 
-        for image in ['obama.jpg', 'clooney.jpeg']:
-            file_identifier = image
-            image_path = os.path.join(DATA_PATH_IMAGES, image)
+        for i in range(8):
+            image_path = os.path.join(normal_folder, file_identifier + '_' + str(i + 1) + '.jpg')
 
             result = analyze_img(image_path)
 
@@ -77,16 +55,38 @@ def create_file():
 
             row = {
                 'category': 'Normal',
-                'identifier': file_identifier + str(i),
-                'movement': 'relaxed',
+                'identifier': file_identifier,
+                'movement': MEEIMovements(i).name.lower()
             }
 
             # Copy metrics to the new row
             for key, value in result.items():
                 row[key.name] = value
 
-
             df_measurements = df_measurements.append(row, ignore_index=True)
+
+    #Handle non dataset images
+    for image in ['obama.jpg', 'clooney.jpeg']:
+        file_identifier = image
+        image_path = os.path.join(DATA_PATH_IMAGES, image)
+
+        result = analyze_img(image_path)
+
+        if result is None:
+            continue
+
+        row = {
+            'category': 'Normal',
+            'identifier': file_identifier + str(i),
+            'movement': 'relaxed',
+        }
+
+        # Copy metrics to the new row
+        for key, value in result.items():
+            row[key.name] = value
+
+
+        df_measurements = df_measurements.append(row, ignore_index=True)
 
     # Handle flaccids
     for flaccid_folder in glob.glob(os.path.join(DATA_PATH_FLACCID, '*')):
@@ -95,24 +95,25 @@ def create_file():
         for flaccid_category_instance in glob.glob(os.path.join(flaccid_folder, '*')):
             file_identifier = os.path.basename(flaccid_category_instance)
 
-            image_path = os.path.join(flaccid_category_instance, file_identifier + '_1.jpg')
+            for i in range(8):
+                image_path = os.path.join(flaccid_category_instance, file_identifier + '_' + str(i + 1) + '.jpg')
 
-            result = analyze_img(image_path)
+                result = analyze_img(image_path)
 
-            if result is None:
-                continue
+                if result is None:
+                    continue
 
-            row = {
-                'category': flaccid_category,
-                'identifier': file_identifier,
-                'movement': 'relaxed'
-            }
+                row = {
+                    'category': flaccid_category,
+                    'identifier': file_identifier,
+                    'movement': MEEIMovements(i).name.lower() 
+                }
 
-            # Copy metrics to the new row
-            for key, value in result.items():
-                row[key.name] = value
-            
-            df_measurements = df_measurements.append(row, ignore_index=True)
+                # Copy metrics to the new row
+                for key, value in result.items():
+                    row[key.name] = value
+                
+                df_measurements = df_measurements.append(row, ignore_index=True)
 
     df_measurements.to_csv(CSV_MEASUREMENTS_PATH)
 
@@ -134,17 +135,26 @@ def process_file():
 
     df_result.to_csv(CSV_PROCESSED_PATH)
 
-def plot_results():
+def plot_results(boxplot=False, movements=[]):
     df_measurements = pd.read_csv(CSV_MEASUREMENTS_PATH, index_col=0)
+
+    if len(movements) != 0:
+        df_measurements = df_measurements[df_measurements['movement'].isin(movements)]
+
+    plot_kind = 'swarm' if not boxplot else 'box'
 
     measurement_categories = [e_cat.name for e_cat in Measurements]
     fig, axs = plt.subplots(len(measurement_categories), 1)
 
     for i, cat in enumerate(measurement_categories):
-        axs[i] = sns.catplot(x='category', y=cat, data=df_measurements, kind='swarm')
+        axs[i] = sns.catplot(x='category', y=cat, data=df_measurements, kind=plot_kind)
         axs[i].set_xticklabels(rotation=45)
-        #plt.xticks(rotation=45)
+
         plt.gcf().subplots_adjust(bottom=0.3)
+
+        # Maybe maybe
+        if boxplot:
+            axs[i].set(ylim=(0, 1))
 
     plt.show()
 
@@ -155,4 +165,6 @@ if __name__ == '__main__':
         process_file()
     else:
         print('Measurements and processing is already available.\nPlotting results.')
-        plot_results()
+        print(Measurements.EYE_DROOP.name.lower())
+        plot_results(boxplot=True, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
+        #plot_results(True)

@@ -15,3 +15,13 @@ class FlaccidCategories(Enum):
     MildFlaccid = 4
     NearNormalFlaccid = 5
     Normal = 6
+
+class MEEIMovements(IntEnum):
+    RELAXED = 0
+    EYEBROWS = 1
+    EYE_CLOSE_SOFT = 2
+    EYE_CLOSE_HARD = 3
+    SMILE_CLOSED = 4
+    SMILE_OPEN = 5
+    LIP_PUCKER = 6
+    BOTTOM_TEETH = 7
