@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
+
 from math import asin, pi
+from scipy.spatial import ConvexHull
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
 from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio, resize_with_aspectratio 
@@ -14,6 +16,7 @@ class StaticAnalyzer():
         """
 
         self._detector = MediapipeKPDetector(maxFaces=1, minDetectionCon=0.4)
+        self._mediapipe_annotations = self._detector.mediapipe_annotations()
         self._keypoints_by_region = self._detector.get_68KP_indices(as_dict=True)
         self._draw = draw
 
@@ -22,7 +25,7 @@ class StaticAnalyzer():
         else:
             # Load default image
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg'))
+            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
             self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_6.jpg'))
 
     def load_img(self, img):
@@ -57,7 +60,6 @@ class StaticAnalyzer():
                  together with the intersection point between both line. This provides enough
                  information to derive both equations.
         """
-        print(dist_point_to_line(5, (0, 8), (1,1)))
 
         img_x, img_y, _ = self._img.shape
 
@@ -90,11 +92,11 @@ class StaticAnalyzer():
 
         # Find mean coördinate in left eyebrow
         MLEB = mean_position([70, 63, 105, 66, 107], self._face)
-        print(MLEB)
+        # print(MLEB)
         
         # Find mean coördinate in right eyebrow
         MREB = mean_position([336, 296, 334, 293, 300], self._face)
-        print(MREB)
+        # print(MREB)
 
         # Mean positions of the eyes (iris)
         # Approximates the center fo the eye
@@ -108,7 +110,7 @@ class StaticAnalyzer():
         # This could also be used in when moving the eyebrow as an indication that
         # one eyebrow is moving but the other one isn't.
         EB_EYE_ratio = ratio(D_EB_EYE_L, D_EB_EYE_R)
-        print('Difference between distance to eyebrow centroid and eye centroid: %.2f' % EB_EYE_ratio)
+        # print('Difference between distance to eyebrow centroid and eye centroid: %.2f' % EB_EYE_ratio)
 
         # Second metric: distance between average eyebrow points and the vertical line
         # across the eyes
@@ -150,28 +152,30 @@ class StaticAnalyzer():
     
     def quantify_eyes(self, draw=False):
         """
-        Quantifies droopy eyelids by calculating the distance between
-        the top and bottom eyelid. The model has two pairs of these
-        points, both are averaged. 
+        Quantifies droopy eyelids by calculating the area of the convex hull
+        of the contour points of the eyelids. 
 
-        Returns the ratio of the eyelid distances.
+        Returns the ratio of the eyelid areas.
+        Note that in 2D, convex_hull.volume represents the area.
         """
 
-        points_left = [(160, 144), (158, 153)]
-        points_right = [(385, 380), (387, 373)]
+        contour_left = [*self._mediapipe_annotations['rightEyeLower0'], *self._mediapipe_annotations['rightEyeUpper0']]
+        contour_right = [*self._mediapipe_annotations['leftEyeLower0'], *self._mediapipe_annotations['leftEyeUpper0']]
 
-        droop_avg = lambda l: sum([dist_point_to_point(self._face[x], self._face[y]) for (x, y) in l]) / len(l)
+        points_contour_left = [self._face[index] for index in contour_left]
+        points_contour_right = [self._face[index] for index in contour_right]
+
+        hull_left = ConvexHull(points_contour_left)
+        hull_right = ConvexHull(points_contour_right)
+
+        print('HULL: Left=%.4f and Right=%.4f' % (hull_left.volume, hull_right.volume)) 
 
         if draw:
-            for (x, y) in points_left + points_right:
-                # Draw points as a circle
-                # cv2.circle(img=self._img, center=self._face[x], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
-                # cv2.circle(img=self._img, center=self._face[y], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+            for point in points_contour_left + points_contour_right:
+                cv2.circle(img=self._img, center=point, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
 
-                # Draw points as a line
-                cv2.line(img=self._img, pt1=self._face[x], pt2=self._face[y], color=(0, 255, 0), thickness=1)
         
-        return ratio(droop_avg(points_left), droop_avg(points_right))
+        return ratio(hull_left.volume, hull_right.volume)
 
     
     def quantify_mouth(self, draw=False):
@@ -277,8 +281,8 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
 
     analyzer.estimate_symmetry_line(draw=True)
-    analyzer.quantify_eyebrows(draw=True)
-    analyzer.quantify_mouth(draw=True)
+    analyzer.quantify_eyebrows(draw=False)
+    analyzer.quantify_mouth(draw=False)
     analyzer.quantify_eyes(draw=True)
 
     #analyzer.resting_symmetry(print_results=True)

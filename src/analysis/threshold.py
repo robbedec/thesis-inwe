@@ -1,8 +1,9 @@
-from matplotlib.pyplot import draw
 import pandas as pd
 import os
 import glob
 import cv2
+
+from scipy import stats
 
 from src.analysis.StaticAnalyzer import StaticAnalyzer
 from src.utils.util import resize_with_aspectratio
