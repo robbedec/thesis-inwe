@@ -27,11 +27,12 @@ def main():
     cap = cv2.VideoCapture(video_source)
 
     mpDetector = MediapipeKPDetector(maxFaces=1)
+    mpDetector_tracking = MediapipeKPDetector(staticMode=False, maxFaces=1)
     meeDetector = MeeShapeDetector()
 
     if benchmark_active:
         import pandas as pd
-        df_benchmark = pd.DataFrame({ 'mediapipe': [], 'meeshape': []})
+        df_benchmark = pd.DataFrame({ 'mediapipe': [], 'mediapipe_tracking': [], 'meeshape': []})
 
 
     while True:
@@ -46,6 +47,10 @@ def main():
         end_time_mp = (time.time() - start_time) * 1000
         # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
 
+        start_time = time.time()
+        img_mp, faces = mpDetector_tracking.findFaceMesh(img.copy(), filtered=True)
+        end_time_mp_tracking = (time.time() - start_time) * 1000
+        # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
 
         start_time = time.time()
         img_mee, results = meeDetector.find_keypoints(img)
@@ -60,7 +65,7 @@ def main():
         cv2.imshow("MEEShape resized", resize_mee)
 
         if benchmark_active:
-            df_benchmark = df_benchmark.append({ 'mediapipe': end_time_mp, 'meeshape': end_time_mee }, ignore_index=True)
+            df_benchmark = df_benchmark.append({ 'mediapipe': end_time_mp, 'mediapipe_tracking': end_time_mp_tracking, 'meeshape': end_time_mee }, ignore_index=True)
 
         cv2.waitKey(1)
     
