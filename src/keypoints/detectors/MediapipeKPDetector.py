@@ -32,8 +32,6 @@ class MediapipeKPDetector():
         # Load filtered indices
         self.filtered_ids = self.get_68KP_indices()
     
-    #def load_source(self, path, static,):
-    
     @staticmethod
     def get_68KP_indices(as_dict=False):
         """
@@ -208,10 +206,9 @@ def main():
     use_video = True
 
     # Load the resource
-    # cap = cv2.VideoCapture("Videos/1.mp4")
     cap = cv2.VideoCapture(0) if use_video else cv2.imread('../../images/paralysis_test.jpg') 
     pTime = 0
-    detector = MediapipeKPDetector(maxFaces=2)
+    detector = MediapipeKPDetector(maxFaces=1)
 
     while True:
         if use_video:

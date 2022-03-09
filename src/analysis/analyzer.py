@@ -11,12 +11,16 @@ from src.analysis.enums import Measurements
 
 class StaticAnalyzer():
 
-    def __init__(self, img=None, draw=False):
+    def __init__(self, img=None, draw=False, mp_static_mode=True):
         """
         Throws an assertion error if no faces were detected 
+
+        StaticMode = False only works for videos, this caches internal
+        state in the representational graph and will taint results if 2
+        consecutive images are too different (eg. different person)
         """
 
-        self._detector = MediapipeKPDetector(maxFaces=1, minDetectionCon=0.4)
+        self._detector = MediapipeKPDetector(maxFaces=1, minDetectionCon=0.4, staticMode=mp_static_mode)
         self._mediapipe_annotations = self._detector.mediapipe_annotations()
         self._keypoints_by_region = self._detector.get_68KP_indices(as_dict=True)
         self._draw = draw
@@ -28,12 +32,14 @@ class StaticAnalyzer():
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
             #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
             self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_6.jpg'))
-
+    
     def load_img(self, img):
         """
         Handle for loading in an image, this triggers the feature detection procedure
         and updates paramaters to ensure that other functions work correctly. 
         """
+
+        #self._detector.reset()
 
         self._img = img
 
@@ -269,10 +275,7 @@ class StaticAnalyzer():
     
     @img.setter
     def img(self, value):
-        # Force reinitialization of mediapipe so caches are 
-        # cleared. Ignoring existing cache leads to undefined
-        # behavior.
-        self.__init__(img=value, draw=self._draw)
+        self.load_img(value)
 
 
 def main():
@@ -282,9 +285,10 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     
     # Goeie afbeelding om de scores te tonen
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
 
     analyzer.estimate_symmetry_line(draw=True)
     analyzer.quantify_eyebrows(draw=False)
