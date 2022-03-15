@@ -92,3 +92,11 @@ def resize_with_aspectratio(image, width=None, height=None, inter=cv2.INTER_AREA
 
 def ratio(x, y):
     return x / y if x < y else y / x
+
+def normalize_uint8(arr):
+    arr_cp = arr.copy()
+
+    arr_cp -= arr_cp.min()
+    arr_cp = (arr_cp / arr_cp.max()) * 255
+
+    return arr_cp.astype(np.uint8)
