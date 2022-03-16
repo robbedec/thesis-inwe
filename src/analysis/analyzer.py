@@ -6,7 +6,16 @@ from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
-from src.utils.util import dist_point_to_line, dist_point_to_point, mean_position, orthogonal_projection, round_tuple, ratio, resize_with_aspectratio 
+from src.utils.util import (
+    dist_point_to_line,
+    dist_point_to_point,
+    mean_position,
+    orthogonal_projection,
+    round_tuple,
+    ratio,
+    resize_with_aspectratio,
+    ROI_points_linear,
+)
 from src.analysis.enums import Measurements
 
 class StaticAnalyzer():
@@ -244,6 +253,22 @@ class StaticAnalyzer():
         
         return ratio(area_left, area_right), dist_lip_middle
     
+    def nasolabial_fold(self):
+        indices_left = [216, 206, 203, 129]
+        indices_right = [436, 426, 423, 358]
+
+        points_left = np.array([ self._face[i] for i in indices_left ])
+        points_right = np.array([ self._face[i] for i in indices_right ])
+
+        # Draw keypoints on the folds
+        for p in np.append(points_left, points_right, axis=1).reshape((8,2)):
+            cv2.circle(img=self._img, center=p, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+
+        box_left = ROI_points_linear(points_left, horizontal=False)
+        box_right = ROI_points_linear(points_right, horizontal=False)
+        cv2.drawContours(image=self._img, contours=[box_left], contourIdx=0, color=(0,0,255), thickness=2)
+        cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
+    
     def resting_symmetry(self, print_results=False):
         measurements_results = {}
 
@@ -285,17 +310,18 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     
     # Goeie afbeelding om de scores te tonen
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg')
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
 
-    analyzer.estimate_symmetry_line(draw=True)
-    analyzer.quantify_eyebrows(draw=False)
-    analyzer.quantify_mouth(draw=False)
-    analyzer.quantify_eyes(draw=True)
+    #analyzer.estimate_symmetry_line(draw=True)
+    #analyzer.quantify_eyebrows(draw=False)
+    #analyzer.quantify_mouth(draw=False)
+    #analyzer.quantify_eyes(draw=True)
+    analyzer.nasolabial_fold()
 
-    analyzer.resting_symmetry(print_results=True)
+    #analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
     cv2.waitKey(0)

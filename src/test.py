@@ -1,4 +1,5 @@
 from math import dist, gamma
+from cv2 import phase
 from matplotlib.pyplot import draw
 import numpy as np
 from utils.util import orthogonal_projection, resize_with_aspectratio, normalize_uint8
@@ -42,7 +43,7 @@ img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normal
 #img_path = '/home/robbedec/repos/ugent/thesis-inwe/src/images/paralysis_test.jpg'
 
 # afbeelding zonder neusplooi
-#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg'
+img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg'
 
 img = cv2.imread(filename=img_path)
 img = resize_with_aspectratio(image=img, width=400)
@@ -52,15 +53,18 @@ img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 # Change orientation with 3*PI/4
 # Goeie 
 m = 15
-kernel = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=10, gamma=0.5)
+kernel = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=np.pi/4, gamma=0.1, psi=1)
+kernel1 = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=10, gamma=0.5)
+
 kernel_8U = normalize_uint8(kernel)
+kernel_resized = cv2.resize(kernel, (400, 400))
 
 
-filtered = cv2.filter2D(src=img_gray, ddepth=cv2.CV_32F, kernel=kernel)
+filtered = cv2.filter2D(src=img_gray, ddepth=cv2.CV_8UC3, kernel=kernel)
 filtered = normalize_uint8(filtered)
 
 cv2.imshow('Original', img)
-cv2.imshow('Kernel', kernel_8U)
+cv2.imshow('Kernel', kernel_resized)
 cv2.imshow('GABOR', filtered)
 #cv2.waitKey(0)
 

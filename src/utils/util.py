@@ -1,5 +1,7 @@
 import numpy as np
 import cv2
+import operator
+
 from math import sqrt
 
 def dist_point_to_line(slope, slope_point, point):
@@ -94,9 +96,69 @@ def ratio(x, y):
     return x / y if x < y else y / x
 
 def normalize_uint8(arr):
+    """
+    Normalizes array values to the interval [0, 255].
+    Useful for images (uint8 interval). 
+    """
+
     arr_cp = arr.copy()
 
     arr_cp -= arr_cp.min()
     arr_cp = (arr_cp / arr_cp.max()) * 255
 
     return arr_cp.astype(np.uint8)
+
+def ROI_points_linear(points, padding=(20, 20), horizontal=True):
+    """
+    Creates a RotatedRectangle the respresents a Region Of Interest
+    for given 2D points (approx colinear!).
+
+    The points are fitted around a line and the rectangle is built
+    around this line. Uses parametric equation of a line.
+
+    - points: array of 2D points
+    - padding: tuple containing the padding in the x and y direction
+               applied according to the line fitted through the points.
+    - horizontal: indication of the point alignment, are points more
+                  vertically aligned than horizontally.
+
+    Return the corners of the ROI
+    """
+
+    line = cv2.fitLine(points=points, distType=cv2.DIST_L2, param=0, reps=0.01, aeps=0.01)
+
+    vx, vy, x0, y0 = line.reshape((1, 4))[0]
+
+    # Take the smallest x-coord and calculate parameter t
+    # Calculate the y-coord using t, this point lies on the line.
+    if horizontal:
+        x_bottom = points[:,0].min()
+        t = (x_bottom - x0) / vx
+        y_bottom = y0 + t * vy
+
+        x_top = points[:,0].max()
+        t = (x_top - x0) / vx
+        y_top = y0 + t * vy
+    
+    else:
+        y_bottom = points[:,1].min()
+        t = (y_bottom - y0) / vy
+        x_bottom = x0 + t * vx
+
+        y_top = points[:,1].max()
+        t = (y_top - y0) / vy
+        x_top = x0 + t * vx
+
+    p1 = (x_bottom, y_bottom)
+    p2 = (x_top, y_top)
+
+    # ROI is a 3-tuple that contains the center tuple, size tuple and an angle.
+    roi = cv2.minAreaRect(np.array([p1, p2], dtype='float32'))
+    # Change increase rect width and height to create a region of interest
+    roi = (roi[0], tuple(map(operator.add, roi[1], padding)), roi[2])
+
+    # Get corners of ROI and convert to int
+    box = cv2.boxPoints(roi)
+    box = np.int0(box)
+
+    return box

@@ -203,10 +203,11 @@ class MediapipeKPDetector():
 
 # Sample usage
 def main():
-    use_video = True
+    use_video = False
 
     # Load the resource
     cap = cv2.VideoCapture(0) if use_video else cv2.imread('../../images/paralysis_test.jpg') 
+    cap = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg')
     pTime = 0
     detector = MediapipeKPDetector(maxFaces=1)
 
@@ -217,8 +218,7 @@ def main():
             img = cap
 
         # Call landmark generator
-        img, faces = detector.findFaceMesh(img, draw_points=True, draw_indices=False, filtered=False)
-        print(faces)
+        img, faces = detector.findFaceMesh(img, draw_points=True, draw_indices=True, filtered=False)
 
         if len(faces)!= 0:
             print(faces[0])
