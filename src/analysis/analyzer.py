@@ -48,8 +48,6 @@ class StaticAnalyzer():
         and updates paramaters to ensure that other functions work correctly. 
         """
 
-        #self._detector.reset()
-
         self._img = img
 
         # Detect facial landmarks
@@ -198,6 +196,14 @@ class StaticAnalyzer():
 
     
     def quantify_mouth(self, draw=False):
+        """
+        Quantifies the deformation of the mouth area by spanning 2 triangles
+        using the mouth corner, projection of the mouth corner on the symmetry
+        line and the projection of the lowest lip point on the symmetry line.
+
+        The area on both sides are ratio'd and returned.  
+        """
+
         slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=self._draw)
 
         corner_left = self._face[61]
@@ -253,23 +259,36 @@ class StaticAnalyzer():
         
         return ratio(area_left, area_right), dist_lip_middle
     
-    def nasolabial_fold(self):
+    def nasolabial_fold(self, draw=False):
+        """
+        Constructs a region of interest (ROI) using keypoints that lie
+        in the area of the nasolabial fold. This region if further
+        processed using a Gabor filter and fold depth is calculated. 
+        """
+
         indices_left = [216, 206, 203, 129]
         indices_right = [436, 426, 423, 358]
 
         points_left = np.array([ self._face[i] for i in indices_left ])
         points_right = np.array([ self._face[i] for i in indices_right ])
 
-        # Draw keypoints on the folds
-        for p in np.append(points_left, points_right, axis=1).reshape((8,2)):
-            cv2.circle(img=self._img, center=p, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+        box_left = ROI_points_linear(points_left, horizontal=False, padding=(30, 30))
+        box_right = ROI_points_linear(points_right, horizontal=False, padding=(30, 30))
 
-        box_left = ROI_points_linear(points_left, horizontal=False)
-        box_right = ROI_points_linear(points_right, horizontal=False)
-        cv2.drawContours(image=self._img, contours=[box_left], contourIdx=0, color=(0,0,255), thickness=2)
-        cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
+        if draw:
+            # Draw keypoints on the folds
+            for p in np.append(points_left, points_right, axis=1).reshape((8,2)):
+                cv2.circle(img=self._img, center=p, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+
+            cv2.drawContours(image=self._img, contours=[box_left], contourIdx=0, color=(0,0,255), thickness=2)
+            cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
     
     def resting_symmetry(self, print_results=False):
+        """
+        Calls all internal class function and groups all
+        measurements into a single dict. 
+        """
+
         measurements_results = {}
 
         mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth(draw=self._draw)
@@ -310,16 +329,16 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     
     # Goeie afbeelding om de scores te tonen
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
 
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
     #analyzer.quantify_mouth(draw=False)
     #analyzer.quantify_eyes(draw=True)
-    analyzer.nasolabial_fold()
+    analyzer.nasolabial_fold(draw=True)
 
     #analyzer.resting_symmetry(print_results=True)
 
