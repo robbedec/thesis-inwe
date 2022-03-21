@@ -1,9 +1,11 @@
+import enum
 import cv2
 import numpy as np
 
 from math import asin, pi
 from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon
+from matplotlib import pyplot as plt
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
 from src.utils.util import (
@@ -15,6 +17,9 @@ from src.utils.util import (
     ratio,
     resize_with_aspectratio,
     ROI_points_linear,
+    crop_rotated_rect,
+    normalize_uint8,
+    rotate_image,
 )
 from src.analysis.enums import Measurements
 
@@ -49,6 +54,8 @@ class StaticAnalyzer():
         """
 
         self._img = img
+
+        self._img = resize_with_aspectratio(self._img, width=400)
 
         # Detect facial landmarks
         # Passing a copy to the detector prevents default drawings by mediapipe
@@ -259,7 +266,7 @@ class StaticAnalyzer():
         
         return ratio(area_left, area_right), dist_lip_middle
     
-    def nasolabial_fold(self, draw=False):
+    def nasolabial_fold(self, draw=False, peak_correction=True):
         """
         Constructs a region of interest (ROI) using keypoints that lie
         in the area of the nasolabial fold. This region if further
@@ -272,8 +279,52 @@ class StaticAnalyzer():
         points_left = np.array([ self._face[i] for i in indices_left ])
         points_right = np.array([ self._face[i] for i in indices_right ])
 
-        box_left = ROI_points_linear(points_left, horizontal=False, padding=(30, 30))
-        box_right = ROI_points_linear(points_right, horizontal=False, padding=(30, 30))
+        margin_left = dist_point_to_point(points_left[0], points_left[-1]) // 2
+        margin_right = dist_point_to_point(points_right[0], points_right[-1]) // 2
+
+        box_left, left_minAreaRect = ROI_points_linear(points_left, horizontal=False, padding=(margin_left, margin_left))
+        box_right, right_minAreaRect = ROI_points_linear(points_right, horizontal=False, padding=(margin_right, margin_right))
+
+        # TODO: roteer afbeelding zodat de kernel mooi aligned is
+        img_gray = cv2.cvtColor(self._img, cv2.COLOR_BGR2GRAY)
+        fold_maps = []
+        for i, (rrect, gabor_angle) in enumerate(zip([left_minAreaRect, right_minAreaRect], [np.pi/4, 3*np.pi/4])):
+            gabor_kernel = cv2.getGaborKernel(ksize=(15, 15), sigma=5, theta=gabor_angle, lambd=np.pi/4, gamma=0.1, psi=1)
+
+            gabor = cv2.filter2D(src=img_gray, ddepth=cv2.CV_32F, kernel=gabor_kernel)
+            gabor_normalized = normalize_uint8(gabor)
+
+            fold_maps.append(crop_rotated_rect(gabor_normalized, rrect))
+        
+        # Calculate histgram correlation between the two folds.
+        hists = [ cv2.calcHist(images=[fold], channels=[0], mask=None, histSize=[256], ranges=[0, 256]) for fold in fold_maps ]
+        
+        # Correct histogram
+        if peak_correction:
+            hst0_largest_gray_value = hists[0].argmax(axis=0)[0]
+            hst1_largest_gray_value = hists[1].argmax(axis=0)[0]
+
+            # Slide every bucket of the hist with lowest peak index positional_diff buckets to the right.
+            index_lowest_peak = 0 if hst0_largest_gray_value < hst1_largest_gray_value else 1
+            positional_diff = abs(hst0_largest_gray_value - hst1_largest_gray_value)
+            # print(hst0_largest_gray_value, hst1_largest_gray_value, positional_diff)
+
+            hst_cpy = hists[index_lowest_peak].copy()
+            for i, val in enumerate(hst_cpy):
+                if i + positional_diff > len(hst_cpy) - 1:
+                    break
+
+                hists[index_lowest_peak][i + positional_diff] = val
+
+
+        [ plt.plot(hist) for hist in hists ]
+        plt.xlim([0, 256])
+        plt.ylim([0, max([m.max() for m in hists])])
+        plt.legend(['Left fold', 'Right fold'], loc='upper left')
+        plt.show()
+
+        correlation = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_CORREL)
+        print(correlation)
 
         if draw:
             # Draw keypoints on the folds
@@ -282,6 +333,10 @@ class StaticAnalyzer():
 
             cv2.drawContours(image=self._img, contours=[box_left], contourIdx=0, color=(0,0,255), thickness=2)
             cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
+
+            [ cv2.imshow('fold'+str(i), fold) for i, fold in enumerate(fold_maps) ]
+        
+        return correlation
     
     def resting_symmetry(self, print_results=False):
         """
@@ -331,14 +386,16 @@ def main():
     # Goeie afbeelding om de scores te tonen
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
 
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
     #analyzer.quantify_mouth(draw=False)
     #analyzer.quantify_eyes(draw=True)
-    analyzer.nasolabial_fold(draw=True)
+    analyzer.nasolabial_fold(draw=True, peak_correction=True)
 
     #analyzer.resting_symmetry(print_results=True)
 

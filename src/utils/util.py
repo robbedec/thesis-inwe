@@ -161,4 +161,22 @@ def ROI_points_linear(points, padding=(20, 20), horizontal=True):
     box = cv2.boxPoints(roi)
     box = np.int0(box)
 
-    return box
+    return box, roi
+
+def crop_rotated_rect(img, rect):
+    # Get center, size, and angle from rect
+    center, size, theta = rect
+    # Convert to int 
+    center, size = tuple(map(int, center)), tuple(map(int, size))
+    # Get rotation matrix for rectangle
+    M = cv2.getRotationMatrix2D(center, theta, 1)
+    # Perform rotation on src image
+    dst = cv2.warpAffine(img, M, img.shape[:2])
+    out = cv2.getRectSubPix(dst, size, center)
+    return out
+
+def rotate_image(image, angle):
+  image_center = tuple(np.array(image.shape[1::-1]) / 2)
+  rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+  result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+  return result
