@@ -1,6 +1,8 @@
-import enum
 import cv2
+from cv2 import norm
+import matplotlib
 import numpy as np
+import matplotlib as mpl
 
 from math import asin, pi
 from scipy.spatial import ConvexHull
@@ -94,7 +96,6 @@ class StaticAnalyzer():
 
         horizontal_slope = (y2 - y1) / (x2 - x1)
         vertical_slope = np.inf if horizontal_slope == 0 else -1 / horizontal_slope
-
 
         if draw:
             # Form: y=f(x)
@@ -201,7 +202,6 @@ class StaticAnalyzer():
         return ratio(hull_left.volume, hull_right.volume)
         #return ratio(poly_left.area, poly_right.area)
 
-    
     def quantify_mouth(self, draw=False):
         """
         Quantifies the deformation of the mouth area by spanning 2 triangles
@@ -266,11 +266,21 @@ class StaticAnalyzer():
         
         return ratio(area_left, area_right), dist_lip_middle
     
-    def nasolabial_fold(self, draw=False, peak_correction=True):
+    def nasolabial_fold(self, draw=False, peak_correction=True, display_hist=False):
         """
         Constructs a region of interest (ROI) using keypoints that lie
         in the area of the nasolabial fold. This region if further
         processed using a Gabor filter and fold depth is calculated. 
+
+        - draw: Toggle to draw the relevant keypoints and the constructed
+                region of interest.
+
+        - peak_correction: This moves one of the histograms such that both
+                           peaks are aligned. Calculating the correlation
+                           of these histograms looks at the contour instead
+                           of purely at the grayscale values.
+
+        - display_hist: Toggle to display histograms.
         """
 
         indices_left = [216, 206, 203, 129]
@@ -299,7 +309,7 @@ class StaticAnalyzer():
         # Calculate histgram correlation between the two folds.
         hists = [ cv2.calcHist(images=[fold], channels=[0], mask=None, histSize=[256], ranges=[0, 256]) for fold in fold_maps ]
         
-        # Correct histogram
+        # Correct histogram so the peaks are aligned
         if peak_correction:
             hst0_largest_gray_value = hists[0].argmax(axis=0)[0]
             hst1_largest_gray_value = hists[1].argmax(axis=0)[0]
@@ -307,7 +317,6 @@ class StaticAnalyzer():
             # Slide every bucket of the hist with lowest peak index positional_diff buckets to the right.
             index_lowest_peak = 0 if hst0_largest_gray_value < hst1_largest_gray_value else 1
             positional_diff = abs(hst0_largest_gray_value - hst1_largest_gray_value)
-            # print(hst0_largest_gray_value, hst1_largest_gray_value, positional_diff)
 
             hst_cpy = hists[index_lowest_peak].copy()
             for i, val in enumerate(hst_cpy):
@@ -316,12 +325,19 @@ class StaticAnalyzer():
 
                 hists[index_lowest_peak][i + positional_diff] = val
 
+        if display_hist:
+            [ plt.plot(hist) for hist in hists ]
 
-        [ plt.plot(hist) for hist in hists ]
-        plt.xlim([0, 256])
-        plt.ylim([0, max([m.max() for m in hists])])
-        plt.legend(['Left fold', 'Right fold'], loc='upper left')
-        plt.show()
+            # Set colorbar
+            fig = plt.gcf()
+            cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=5, vmax=10), cmap=mpl.cm.gray), orientation='horizontal')
+            cbar.set_ticks([])
+
+            plt.xlim([0, 256])
+            plt.ylim([0, max([m.max() for m in hists])])
+            plt.legend(['Left fold', 'Right fold'], loc='upper left')
+            plt.set_cmap('gray')
+            plt.show()
 
         correlation = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_CORREL)
         print(correlation)
@@ -349,6 +365,7 @@ class StaticAnalyzer():
         mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth(draw=self._draw)
         eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows(draw=self._draw)
         eye_droop = self.quantify_eyes(draw=self._draw)
+        nasolabial_fold_correlation = self.nasolabial_fold()
 
         measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
         measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
@@ -356,13 +373,13 @@ class StaticAnalyzer():
         measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
         measurements_results[Measurements.EYE_DROOP] = eye_droop
         measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_ratio
+        measurements_results[Measurements.NASOLABIAL_FOLD] = nasolabial_fold_correlation
 
         if print_results:
             for key, value in measurements_results.items():
                 print('%s: %.2f' % (key.name, value))
 
         return measurements_results
-
     
     @property
     def img(self):
@@ -384,18 +401,18 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     
     # Goeie afbeelding om de scores te tonen
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
+    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
-    analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
 
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
     #analyzer.quantify_mouth(draw=False)
     #analyzer.quantify_eyes(draw=True)
-    analyzer.nasolabial_fold(draw=True, peak_correction=True)
+    analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
 
     #analyzer.resting_symmetry(print_results=True)
 

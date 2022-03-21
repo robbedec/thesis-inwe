@@ -1,12 +1,13 @@
 from enum import Enum, IntEnum
 
 class Measurements(Enum):
-    EYEBROW_EYE_DISTANCE = 2,
-    EYEBROW_HORIZONTAL_DISTANCE = 3,
-    EYEBROW_INTERCEPT_DISTANCE = 4,
-    MOUTH_AREA = 5,
-    LIPCENTER_OFFSET = 6,
+    EYEBROW_EYE_DISTANCE = 2
+    EYEBROW_HORIZONTAL_DISTANCE = 3
+    EYEBROW_INTERCEPT_DISTANCE = 4
+    MOUTH_AREA = 5
+    LIPCENTER_OFFSET = 6
     EYE_DROOP = 7
+    NASOLABIAL_FOLD = 8
 
 class FlaccidCategories(Enum):
     CompleteFlaccid = 1
