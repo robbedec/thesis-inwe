@@ -1,6 +1,8 @@
 import cv2
 import mediapipe as mp
 import time
+import numpy as np
+import math
 
 from enum import Enum
 
@@ -154,9 +156,25 @@ class MediapipeKPDetector():
             'leftCheek': [425]
         }
 
-    def findFaceMesh(self, img, draw_points=True, draw_indices=False, filtered=False):
+    def findFaceMesh(self, img, draw_points=True, draw_indices=False, filtered=False, pose_estimation=False):
+        """
+        - draw_points: Draw circles on the keypoints instead of drawing the complete mesh.
+
+        - draw_indices: Draw the index of the keypoint instead of a circle.
+
+        - filtered: Only extract the 51 relevant keypoints from the 68KP model
+                    (face contour excluded, see self.get_68KP_indices). 
+        
+        - pose_estimation: Instructs the algorithm to also calculate the orientation of the 
+                           face. The result for eacht detected face in the image is stored in
+                           the _orientation_angles property. Each entry contains three euler
+                           angles (roll, pitch, yaw).
+        """
+
         self.imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.faceMesh.process(self.imgRGB)
+        self._img = img
+        self._orientation_angles = []
 
         faces = []
 
@@ -164,50 +182,141 @@ class MediapipeKPDetector():
 
             # Every faceLms corresponds to the landmarks of one face
             for faceLms in self.results.multi_face_landmarks:
-                face = []
+                face_2d = []
+                # 3D points are used internally to estimate head pose
+                pose_2d = []
+                pose_3d = []
 
-                for id,lm in enumerate(faceLms.landmark):
+                ih, iw, ic = img.shape
+
+                for id, lm in enumerate(faceLms.landmark):
+
+                    # Set aside some 2D - 3D correspondences of points that can
+                    # be used to calculate the face orientation.
+                    # Z-coordinate is scaled into real world coordinates
+                    if pose_estimation and id in [33, 263, 1, 61, 291, 199]:
+                        if id == 1:
+                            x, y, z = (lm.x * iw), (lm.y * ih), lm.z * 3000
+
+                        x, y, z = int(lm.x * iw), int(lm.y * ih), lm.z
+                        pose_2d.append([x, y])
+                        pose_3d.append([x, y, z])
 
                     # Landmark x,y,z is normalized
                     # Convert them back by remultiplying width/height
-                    ih, iw, ic = img.shape
-                    x,y = int(lm.x*iw), int(lm.y*ih)
-
-                    circle_radius = 2 if ih < 1000 else 6
+                    x, y = int(lm.x * iw), int(lm.y * ih)
+                    face_2d.append([x, y])
 
                     if draw_points:
+                        circle_radius = 2 if ih < 1000 else 6
+
                         if filtered:
                             if id in self.filtered_ids:
                                 if draw_indices:
-                                    cv2.putText(img, str(id), (x, y), cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 255, 0), 1)
+                                    cv2.putText(self._img, str(id), (x, y), cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 255, 0), 1)
                                 else:
-                                    cv2.circle(img, (x,y), circle_radius, (255,0,0), cv2.FILLED)
-                                face.append([x,y])
+                                    cv2.circle(self._img, (x,y), circle_radius, (255,0,0), cv2.FILLED)
                         else:
                             if draw_indices:
-                                cv2.putText(img, str(id), (x, y), cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 255, 0), 1)
+                                cv2.putText(self._img, str(id), (x, y), cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 255, 0), 1)
                             else:
-                                cv2.circle(img, (x,y), circle_radius, (255,0,0), cv2.FILLED)
+                                cv2.circle(self._img, (x,y), circle_radius, (255,0,0), cv2.FILLED)
+                
 
-                    if filtered and id in self.filtered_ids or not filtered:
-                        face.append([x,y])
+                if pose_estimation:
+                    pose_2d = np.array(pose_2d, dtype=np.float64)
+                    pose_3d = np.array(pose_3d, dtype=np.float64)
 
+                    self._orientation_angles.append(self.pose_estimation(pose_2d, pose_3d))
 
-                faces.append(face)
+                faces.append([face_2d[i] for i in self.filtered_ids] if filtered else face_2d)
+
 
                 # Draw (filtered) landmarks
                 if not draw_points:
-                    self.mpDraw.draw_landmarks(img, faceLms, self.mpFaceMesh.FACEMESH_CONTOURS, self.drawSpec, self.drawSpec)
+                    self.mpDraw.draw_landmarks(self._img, faceLms, self.mpFaceMesh.FACEMESH_CONTOURS, self.drawSpec, self.drawSpec)
 
         return img, faces
+    
+    def pose_estimation(self, face2d, face3d, draw=True):
+        """
+        - face2d: 
+        - face3d: 
+        """
+
+        ih, iw, _ = self._img.shape
+        focal_length = 1 * iw
+        cam_matrix = np.array([[focal_length, 0, ih / 2],
+                               [0, focal_length, iw / 2],
+                               [0, 0, 1]])
+
+
+        nose2d = face2d[0]
+        nose3d = face3d[0] 
+
+        focal_length = 1 * iw
+
+        cam_matrix = np.array([ [focal_length, 0, ih / 2],
+                                [0, focal_length, iw / 2],
+                                [0, 0, 1]])
+
+        # The distortion parameters
+        # Assuming no camer a distortion
+        dist_matrix = np.zeros((4, 1), dtype=np.float64)
+
+        # Solve PnP
+        success, rot_vec, tvec = cv2.solvePnP(face3d, face2d, cam_matrix, dist_matrix)
+
+        # Get rotational matrix
+        rmat, jac = cv2.Rodrigues(rot_vec)
+
+        # Get angles
+        angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rmat)
+
+        # Get the y rotation degree
+        x = angles[0] * 360
+        y = angles[1] * 360
+        z = angles[2] * 360
+
+        if draw:
+            # See where the user's head tilting
+            if y < -10:
+                text = "Looking Left"
+            elif y > 10:
+                text = "Looking Right"
+            elif x < -10:
+                text = "Looking Down"
+            elif x > 10:
+                text = "Looking Up"
+            else:
+                text = "Forward"
+
+            p1 = (int(nose2d[0]), int(nose2d[1]))
+            p2 = (int(nose2d[0] + y * 10) , int(nose2d[1] - x * 10))
+            
+            cv2.line(self._img, p1, p2, (255, 0, 0), 3)
+
+            # Add the text on the image
+            cv2.putText(self._img, text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(self._img, "x: " + str(np.round(x,2)), (500, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(self._img, "y: " + str(np.round(y,2)), (500, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(self._img, "z: " + str(np.round(z,2)), (500, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        
+        return [x, y, z]
+    
+    @property
+    def orientation(self):
+        return self._orientation_angles
 
 # Sample usage
 def main():
-    use_video = False
+    use_video = True
 
     # Load the resource
     cap = cv2.VideoCapture(0) if use_video else cv2.imread('../../images/paralysis_test.jpg') 
-    cap = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg')
+    #cap = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg')
+
     pTime = 0
     detector = MediapipeKPDetector(maxFaces=1)
 
@@ -218,10 +327,10 @@ def main():
             img = cap
 
         # Call landmark generator
-        img, faces = detector.findFaceMesh(img, draw_points=True, draw_indices=True, filtered=False)
-
-        if len(faces)!= 0:
-            print(faces[0])
+        img, faces = detector.findFaceMesh(img, draw_points=True, draw_indices=True, filtered=True, pose_estimation=True)
+        #print(detector.orientation[0])
+        degrees = [x * 180 / np.pi for x in detector.orientation[0]]
+        #print(degrees)
 
         # Calcultate FPS
         if use_video:
