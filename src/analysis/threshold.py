@@ -19,7 +19,7 @@ DATA_PATH_IMAGES = '/home/robbedec/repos/ugent/thesis-inwe/src/images'
 CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements.csv'
 CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
 
-analyzer = StaticAnalyzer(draw=True)
+analyzer = StaticAnalyzer(draw=False)
 
 def analyze_img(img_path, display_images=False):
     try:
@@ -33,7 +33,8 @@ def analyze_img(img_path, display_images=False):
 
         return measurements
 
-    except AssertionError:
+    except:
+        print(img_path)
         return None
 
 def create_file():
@@ -166,5 +167,9 @@ if __name__ == '__main__':
     else:
         print('Measurements and processing is already available.\nPlotting results.')
         print(Measurements.EYE_DROOP.name.lower())
-        plot_results(boxplot=False, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
-        #plot_results(True)
+
+        # Only plot relaxed face position
+        # plot_results(boxplot=False, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
+
+        # Plot all movements
+        plot_results(boxplot=True)
