@@ -408,6 +408,8 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/Downloads/20160601_rustpositie.JPG')
+    analyzer.img = cv2.imread('/home/robbedec/Downloads/after.jpg')
 
     # Trigger individuel measurements
     #analyzer.estimate_symmetry_line(draw=True)

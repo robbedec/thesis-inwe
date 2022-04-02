@@ -211,6 +211,7 @@ def plot(boxplot=False, movements=[]):
 
         # Set titles
         fig.suptitle(cat)
+        fig.canvas.manager.set_window_title(cat)
         ax1.set_title('Flaccid')
         ax2.set_title('Synkinetic')
 
@@ -233,7 +234,10 @@ def plot(boxplot=False, movements=[]):
         #ax1.set(ylim=(0, 1))
 
         plt.gcf().subplots_adjust(bottom=0.2)
-        plt.show()
+
+    # Shows all plots at once if this line is outside of the loop.
+    # Shown individually if inside the loop
+    plt.show()
 
 if __name__ == '__main__':
     if not os.path.exists(CSV_MEASUREMENTS_PATH):
@@ -242,7 +246,6 @@ if __name__ == '__main__':
         process_file()
     else:
         print('Measurements and processing is already available.\nPlotting results.')
-        print(Measurements.EYE_DROOP.name.lower())
 
         # Only plot relaxed face position
         # plot_results(boxplot=False, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
