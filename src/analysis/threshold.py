@@ -14,10 +14,11 @@ from src.analysis.enums import Measurements, MEEIMovements
 DATA_PATH = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set'
 DATA_PATH_NORMAL = os.path.join(DATA_PATH, 'Normals')
 DATA_PATH_FLACCID = os.path.join(DATA_PATH, 'Flaccid')
+DATA_PATH_SYNKINETIC = os.path.join(DATA_PATH, 'Synkinetic')
 DATA_PATH_IMAGES = '/home/robbedec/repos/ugent/thesis-inwe/src/images'
 
-CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements.csv'
-CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed.csv'
+CSV_MEASUREMENTS_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_with_synkinetic.csv'
+CSV_PROCESSED_PATH = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/meei_measurements_processed_with_synkinetic.csv'
 
 analyzer = StaticAnalyzer(draw=False)
 
@@ -38,7 +39,7 @@ def analyze_img(img_path, display_images=False):
         return None
 
 def create_file():
-    df_measurements = pd.DataFrame({ 'category': [], 'identifier': [], 'movement': []})
+    df_measurements = pd.DataFrame({ 'category': [], 'identifier': [], 'movement': [], 'general_cat': []})
 
     # Handle normals 
     for normal_folder in glob.glob(os.path.join(DATA_PATH_NORMAL, '*')):
@@ -57,7 +58,8 @@ def create_file():
             row = {
                 'category': 'Normal',
                 'identifier': file_identifier,
-                'movement': MEEIMovements(i).name.lower()
+                'movement': MEEIMovements(i).name.lower(),
+                'general_cat': 'normal'
             }
 
             # Copy metrics to the new row
@@ -80,6 +82,7 @@ def create_file():
             'category': 'Normal',
             'identifier': file_identifier + str(i),
             'movement': 'relaxed',
+            'general_cat': 'normal'
         }
 
         # Copy metrics to the new row
@@ -107,7 +110,36 @@ def create_file():
                 row = {
                     'category': flaccid_category,
                     'identifier': file_identifier,
-                    'movement': MEEIMovements(i).name.lower() 
+                    'movement': MEEIMovements(i).name.lower(),
+                    'general_cat': 'flaccid'
+                }
+
+                # Copy metrics to the new row
+                for key, value in result.items():
+                    row[key.name] = value
+                
+                df_measurements = df_measurements.append(row, ignore_index=True)
+        
+    # Handle synkinetic
+    for synkinetic_folder in glob.glob(os.path.join(DATA_PATH_SYNKINETIC, '*')):
+        synkinetic_category = os.path.basename(synkinetic_folder)
+
+        for synkinetic_category_instance in glob.glob(os.path.join(synkinetic_folder, '*')):
+            file_identifier = os.path.basename(synkinetic_category_instance)
+
+            for i in range(8):
+                image_path = os.path.join(synkinetic_category_instance, file_identifier + '_' + str(i + 1) + '.jpg')
+
+                result = analyze_img(image_path)
+
+                if result is None:
+                    continue
+
+                row = {
+                    'category': synkinetic_category,
+                    'identifier': file_identifier,
+                    'movement': MEEIMovements(i).name.lower(),
+                    'general_cat': 'synkinetic' 
                 }
 
                 # Copy metrics to the new row
@@ -159,6 +191,50 @@ def plot_results(boxplot=False, movements=[]):
 
     plt.show()
 
+def plot(boxplot=False, movements=[]):
+    df_measurements = pd.read_csv(CSV_MEASUREMENTS_PATH, index_col=0)
+
+    if len(movements) != 0:
+        df_measurements = df_measurements[df_measurements['movement'].isin(movements)]
+
+    df_flaccid = df_measurements[df_measurements['general_cat'] != 'synkinetic']
+    df_synkinetic = df_measurements[df_measurements['general_cat'] != 'flaccid']
+
+    measurement_categories = [e_cat.name for e_cat in Measurements]
+    order_flaccid = ['Normal', 'NearNormalFlaccid', 'MildFlaccid', 'ModerateFlaccid', 'SevereFlaccid', 'CompleteFlaccid']
+    order_synkinetic = ['Normal', 'NearNormalSynkinetic', 'MildSynkinetic', 'ModerateSynkinetic', 'Severe Synkinetic', 'Complete Synkinetic']
+    order_general = ['Normal', 'NearNormal', 'Mild', 'Moderate', 'Severe', 'Complete']
+    
+
+    for cat in measurement_categories:
+        fig, (ax1, ax2) = plt.subplots(1, 2, sharey=False, figsize=(10,5))
+
+        # Set titles
+        fig.suptitle(cat)
+        ax1.set_title('Flaccid')
+        ax2.set_title('Synkinetic')
+
+        if boxplot:
+            ax1 = sns.boxplot(x='category', y=cat, data=df_flaccid, ax=ax1, order=order_flaccid)
+            ax2 = sns.boxplot(x='category', y=cat, data=df_synkinetic, ax=ax2, order=order_synkinetic)
+        else:
+            # Choose between stripplot or swarmplot (circles dont overlap)
+            ax1 = sns.stripplot(x='category', y=cat, data=df_flaccid, ax=ax1, order=order_flaccid, size=4)
+            ax2 = sns.stripplot(x='category', y=cat, data=df_synkinetic, ax=ax2, order=order_synkinetic, size=4)
+
+        ax1.set_xticklabels(order_general, rotation=45)
+        ax2.set_xticklabels(order_general, rotation=45)
+
+        ax1.set_xlabel('')
+        ax1.set_ylabel('')
+        ax2.set_xlabel('')
+        ax2.set_ylabel('')
+
+        #ax1.set(ylim=(0, 1))
+
+        plt.gcf().subplots_adjust(bottom=0.2)
+        plt.show()
+
 if __name__ == '__main__':
     if not os.path.exists(CSV_MEASUREMENTS_PATH):
         create_file()
@@ -172,4 +248,5 @@ if __name__ == '__main__':
         # plot_results(boxplot=False, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
 
         # Plot all movements
-        plot_results(boxplot=True)
+        #plot_results(boxplot=True)
+        plot()
