@@ -1,12 +1,9 @@
 import cv2
-from cv2 import norm
-import matplotlib
 import numpy as np
 import matplotlib as mpl
 
 from math import asin, pi
 from scipy.spatial import ConvexHull
-from shapely.geometry import Polygon
 from matplotlib import pyplot as plt
 
 from src.keypoints.detectors.MediapipeKPDetector import MediapipeKPDetector
@@ -190,18 +187,10 @@ class StaticAnalyzer():
         hull_left = ConvexHull(points_contour_left)
         hull_right = ConvexHull(points_contour_right)
 
-        # poly_left = Polygon(points_contour_left)
-        # poly_right = Polygon(points_contour_right)
-
         if draw:
-            """
-            for point in points_contour_left + points_contour_right:
-                cv2.circle(img=self._img, center=point, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
-            """
             for points in [hull_left.points, hull_right.points]:
                 first_point = points[0]
                 for i, point in enumerate(points):
-                    print(point[0], point[1])
                     if i == len(points) - 1:
                         cv2.line(self._img, pt1=round_tuple(point), pt2=round_tuple(first_point), color=(255, 0, 0), thickness=2)
                     else:
@@ -211,7 +200,6 @@ class StaticAnalyzer():
         
         # Oppervlakte vd polygon is quasi gelijk aan de oppervlakte van de convex hull
         return ratio(hull_left.volume, hull_right.volume)
-        #return ratio(poly_left.area, poly_right.area)
 
     def quantify_mouth(self, draw=False):
         """
@@ -350,8 +338,11 @@ class StaticAnalyzer():
             plt.set_cmap('gray')
             plt.show()
 
-        correlation = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_CHISQR)
-        print(correlation)
+        # Fit is good if the result is low for CHISQR, for INTERSECT if result is high.
+        # It may be better to only use the sigma ratio.
+
+        goodness_of_fit = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_INTERSECT)
+        sigmas = [ h.std() for h in hists ]
 
         if draw:
             # Draw keypoints on the folds
@@ -364,7 +355,7 @@ class StaticAnalyzer():
             [ cv2.imshow('fold'+str(i), fold) for i, fold in enumerate(fold_maps) ]
             [ cv2.imwrite('/home/robbedec/Desktop/gabor_fold'+str(i)+'.png', fold) for i, fold in enumerate(fold_maps) ]
         
-        return correlation
+        return goodness_of_fit, ratio(sigmas[0], sigmas[1])
     
     def resting_symmetry(self, print_results=False):
         """
@@ -377,7 +368,7 @@ class StaticAnalyzer():
         mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth(draw=self._draw)
         eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows(draw=self._draw)
         eye_droop = self.quantify_eyes(draw=self._draw)
-        nasolabial_fold_correlation = self.nasolabial_fold(draw=self._draw)
+        nasolabial_fold_fit, nasolabial_sigma_spread = self.nasolabial_fold(draw=self._draw)
 
         measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
         measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
@@ -385,7 +376,9 @@ class StaticAnalyzer():
         measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
         measurements_results[Measurements.EYE_DROOP] = eye_droop
         measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_ratio
-        #measurements_results[Measurements.NASOLABIAL_FOLD] = nasolabial_fold_correlation
+        measurements_results[Measurements.NASOLABIAL_FOLD_SIGMA] = nasolabial_sigma_spread
+        # This measurement isn't all that helpful.
+        # measurements_results[Measurements.NASOLABIAL_FOLD_FIT] = nasolabial_fold_fit
 
         if print_results:
             for key, value in measurements_results.items():
@@ -407,11 +400,8 @@ class StaticAnalyzer():
 
 
 def main():
-    #test = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     analyzer = StaticAnalyzer(draw=True)
 
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
-    
     # Goeie afbeelding om de scores te tonen
     analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg')
@@ -419,16 +409,14 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
 
-
-    #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
-
+    # Trigger individuel measurements
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
     #analyzer.quantify_mouth(draw=False)
     #analyzer.quantify_eyes(draw=True)
     #analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
 
+    # Trigger all measurements
     analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
