@@ -155,12 +155,12 @@ class StaticAnalyzer():
             # Todo: option to draw all lines that were measured on the image 
 
             # Draw approximated eye center points
-            cv2.circle(self._img, round_tuple(LEC), 5, (0, 255, 0), cv2.FILLED)
-            cv2.circle(self._img, round_tuple(REC), 5, (0, 255, 0), cv2.FILLED)
+            cv2.circle(self._img, round_tuple(LEC), 3, (0, 255, 0), cv2.FILLED)
+            cv2.circle(self._img, round_tuple(REC), 3, (0, 255, 0), cv2.FILLED)
 
             # Draw mean eyebrow points
-            cv2.circle(self._img, round_tuple(MLEB), 5, (0, 255, 0), cv2.FILLED)
-            cv2.circle(self._img, round_tuple(MREB), 5, (0, 255, 0), cv2.FILLED)
+            cv2.circle(self._img, round_tuple(MLEB), 3, (0, 255, 0), cv2.FILLED)
+            cv2.circle(self._img, round_tuple(MREB), 3, (0, 255, 0), cv2.FILLED)
 
             # Draw lines between mean eyebrow and approximated iris
             cv2.line(img=self._img, pt1=round_tuple(LEC), pt2=round_tuple(MLEB), color=(0, 255, 0), thickness=1)
@@ -194,8 +194,19 @@ class StaticAnalyzer():
         # poly_right = Polygon(points_contour_right)
 
         if draw:
+            """
             for point in points_contour_left + points_contour_right:
                 cv2.circle(img=self._img, center=point, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
+            """
+            for points in [hull_left.points, hull_right.points]:
+                first_point = points[0]
+                for i, point in enumerate(points):
+                    print(point[0], point[1])
+                    if i == len(points) - 1:
+                        cv2.line(self._img, pt1=round_tuple(point), pt2=round_tuple(first_point), color=(255, 0, 0), thickness=2)
+                    else:
+                        cv2.line(img=self._img, pt1=round_tuple(point), pt2=round_tuple(points[i + 1]), color=(255, 0, 0), thickness=2)
+
 
         
         # Oppervlakte vd polygon is quasi gelijk aan de oppervlakte van de convex hull
@@ -253,12 +264,12 @@ class StaticAnalyzer():
             rounded_chin_corrected = round_tuple(chin_corrected)
 
             # Center of the lip
-            cv2.circle(img=self._img, center=self._face[0], radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=self._face[0], radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
 
-            cv2.circle(img=self._img, center=corner_left, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
-            cv2.circle(img=self._img, center=corner_right, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
-            cv2.circle(img=self._img, center=chin, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
-            cv2.circle(img=self._img, center=rounded_chin_corrected, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=corner_left, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=corner_right, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=chin, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
+            cv2.circle(img=self._img, center=rounded_chin_corrected, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
 
             # Draw lines between chinpoint and corners of the mouth 
             cv2.line(img=self._img, pt1=corner_left, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
@@ -339,18 +350,19 @@ class StaticAnalyzer():
             plt.set_cmap('gray')
             plt.show()
 
-        correlation = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_CORREL)
+        correlation = cv2.compareHist(H1=hists[0], H2=hists[1], method=cv2.HISTCMP_CHISQR)
         print(correlation)
 
         if draw:
             # Draw keypoints on the folds
             for p in np.append(points_left, points_right, axis=1).reshape((8,2)):
-                cv2.circle(img=self._img, center=p, radius=5, color=(0, 255, 0), thickness=cv2.FILLED)
+                cv2.circle(img=self._img, center=p, radius=3, color=(0, 255, 0), thickness=cv2.FILLED)
 
             cv2.drawContours(image=self._img, contours=[box_left], contourIdx=0, color=(0,0,255), thickness=2)
             cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
 
             [ cv2.imshow('fold'+str(i), fold) for i, fold in enumerate(fold_maps) ]
+            [ cv2.imwrite('/home/robbedec/Desktop/gabor_fold'+str(i)+'.png', fold) for i, fold in enumerate(fold_maps) ]
         
         return correlation
     
@@ -365,7 +377,7 @@ class StaticAnalyzer():
         mouth_area_ratio, distance_lipcenter_ratio = self.quantify_mouth(draw=self._draw)
         eyebrow_eye_distance_ratio, eyebrow_horizontal_ratio, eyebrow_intercept_ratio = self.quantify_eyebrows(draw=self._draw)
         eye_droop = self.quantify_eyes(draw=self._draw)
-        nasolabial_fold_correlation = self.nasolabial_fold()
+        nasolabial_fold_correlation = self.nasolabial_fold(draw=self._draw)
 
         measurements_results[Measurements.MOUTH_AREA] = mouth_area_ratio
         measurements_results[Measurements.EYEBROW_EYE_DISTANCE] = eyebrow_eye_distance_ratio
@@ -373,7 +385,7 @@ class StaticAnalyzer():
         measurements_results[Measurements.EYEBROW_INTERCEPT_DISTANCE] = eyebrow_intercept_ratio
         measurements_results[Measurements.EYE_DROOP] = eye_droop
         measurements_results[Measurements.LIPCENTER_OFFSET] = distance_lipcenter_ratio
-        measurements_results[Measurements.NASOLABIAL_FOLD] = nasolabial_fold_correlation
+        #measurements_results[Measurements.NASOLABIAL_FOLD] = nasolabial_fold_correlation
 
         if print_results:
             for key, value in measurements_results.items():
@@ -396,27 +408,31 @@ class StaticAnalyzer():
 
 def main():
     #test = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
-    analyzer = StaticAnalyzer()
+    analyzer = StaticAnalyzer(draw=True)
 
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/NearNormalFlaccid/NearNormalFlaccid1/NearNormalFlaccid1_1.jpg')
     
     # Goeie afbeelding om de scores te tonen
     analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_8.jpg')
-    #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
+
+
+    #analyzer.img = resize_with_aspectratio(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_1.jpg'), width=400)
+    #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/clooney.jpeg')
 
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
     #analyzer.quantify_mouth(draw=False)
     #analyzer.quantify_eyes(draw=True)
-    analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
+    #analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
 
-    #analyzer.resting_symmetry(print_results=True)
+    analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
+    cv2.imwrite('./result_annotations.png', analyzer.img)
     cv2.waitKey(0)
 
 if __name__ == "__main__":

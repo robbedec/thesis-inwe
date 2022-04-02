@@ -166,5 +166,5 @@ if __name__ == '__main__':
     else:
         print('Measurements and processing is already available.\nPlotting results.')
         print(Measurements.EYE_DROOP.name.lower())
-        plot_results(boxplot=True, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
+        plot_results(boxplot=False, movements=[ x.name.lower() for x in [MEEIMovements.RELAXED] ])
         #plot_results(True)

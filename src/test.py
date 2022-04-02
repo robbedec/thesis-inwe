@@ -1,5 +1,4 @@
-from math import dist, gamma
-from cv2 import phase
+from math import dist
 from matplotlib.pyplot import draw
 import numpy as np
 from utils.util import orthogonal_projection, resize_with_aspectratio, normalize_uint8
@@ -36,15 +35,23 @@ Gabor Filter test
 """
 
 # afbeelding met neusplooi aan beide kanten
-#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg'
-img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg'
+img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg'
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal1/Normal1_5.jpg'
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'
 
 # Zeer goeie afbeelding met theta = 3PI/4
 #img_path = '/home/robbedec/repos/ugent/thesis-inwe/src/images/paralysis_test.jpg'
 
 # afbeelding zonder neusplooi
-img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg'
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg'
 
+# afbeelding met lichte neusplooi
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Synkinetic/Complete Synkinetic/Synkinetic_Complete1/Synkinetic_Complete1_1.jpg'
+
+# dodgy afbeelding, neusplooi gaat vrij verticaal
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg'
+
+#img_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg'
 img = cv2.imread(filename=img_path)
 img = resize_with_aspectratio(image=img, width=400)
 
@@ -52,20 +59,36 @@ img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # Change orientation with 3*PI/4
 # Goeie 
-m = 15
-kernel = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=np.pi/4, gamma=0.1, psi=1)
-kernel1 = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=10, gamma=0.5)
 
-kernel_8U = normalize_uint8(kernel)
-kernel_resized = cv2.resize(kernel, (400, 400))
+for i, angle in enumerate([np.pi/4, 3*np.pi/4]):
+
+    m = 15
+    kernel = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=angle, lambd=np.pi/4, gamma=0.1, psi=1)
+    kernel1 = cv2.getGaborKernel(ksize=(m, m), sigma=5, theta=np.pi/4, lambd=10, gamma=0.5)
+
+    #kernel /= 1.0 * kernel.sum()
+
+    kernel_8U = normalize_uint8(kernel)
+    kernel_resized = cv2.resize(kernel, (400, 400))
 
 
-filtered = cv2.filter2D(src=img_gray, ddepth=cv2.CV_8UC3, kernel=kernel)
-filtered = normalize_uint8(filtered)
+    filtered = cv2.filter2D(src=img_gray, ddepth=cv2.CV_8UC3, kernel=kernel)
 
+    filtered_grijs = cv2.filter2D(src=img_gray, ddepth=cv2.CV_32F, kernel=kernel)
+    filtered_grijs = normalize_uint8(filtered_grijs)
+
+    inverted = cv2.bitwise_not(filtered)
+
+    #cv2.imshow('Kernel', kernel_resized)
+    #cv2.imshow('GABOR' + str(i), filtered)
+    #cv2.imshow('GABOR INVERTED' + str(i), inverted)
+    cv2.imshow('GABOR FLOAT' + str(i), filtered_grijs)
+    path = '/home/robbedec/Desktop/'
+    ar = ['left', 'right']
+    cv2.imwrite(path + 'gabor_' + ar[i] + '.png', filtered_grijs)
+
+cv2.imwrite(path + 'gabor_start.png', img)
 cv2.imshow('Original', img)
-cv2.imshow('Kernel', kernel_resized)
-cv2.imshow('GABOR', filtered)
 #cv2.waitKey(0)
 
 # Try with DOG

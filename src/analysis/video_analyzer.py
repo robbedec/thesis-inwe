@@ -21,7 +21,7 @@ class VideoAnalyzer():
 
             if not success:
                 # End of video reached
-                df_video.to_csv(self._csv_path if csv_path is not None else './test.csv')
+                df_video.to_csv(self._csv_path if csv_path is not None else './test_normal.csv')
                 break
 
             self._static_analyzer.img = frame
@@ -84,6 +84,10 @@ class VideoAnalyzer():
 if __name__ == '__main__':
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
     csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video.csv'
+
+    #video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal8/Normal8.mp4'
+    #csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video_normal.csv'
+
     videoanalyzer = VideoAnalyzer(video_path=video_path, csv_path=csv_path)
 
     #videoanalyzer.process_video()
@@ -91,5 +95,5 @@ if __name__ == '__main__':
     #videoanalyzer.display_frame([1199, 2531])
 
     # Video that shows mouth movement
-    videoanalyzer.resume_video_from_frame(1400)
+    #videoanalyzer.resume_video_from_frame(1400)
     #videoanalyzer.resume_video_from_frame(900)

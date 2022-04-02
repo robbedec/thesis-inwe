@@ -7,7 +7,8 @@ class Measurements(Enum):
     MOUTH_AREA = 5
     LIPCENTER_OFFSET = 6
     EYE_DROOP = 7
-    NASOLABIAL_FOLD = 8
+    NASOLABIAL_FOLD_CHI = 8
+    NASOLABIAL_FOLD_SIGMA = 9
 
 class FlaccidCategories(Enum):
     CompleteFlaccid = 1
