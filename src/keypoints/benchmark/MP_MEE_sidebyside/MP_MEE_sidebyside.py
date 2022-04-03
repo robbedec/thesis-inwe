@@ -26,7 +26,7 @@ def main():
 
     cap = cv2.VideoCapture(video_source)
 
-    mpDetector = MediapipeKPDetector(maxFaces=1)
+    mpDetector = MediapipeKPDetector(staticMode=True, maxFaces=1)
     mpDetector_tracking = MediapipeKPDetector(staticMode=False, maxFaces=1)
     meeDetector = MeeShapeDetector()
 
@@ -41,33 +41,38 @@ def main():
         # Success is False when the video is in the last frame
         if not success and benchmark_active:
             df_benchmark.to_csv('MP_MEE_sidebyside.csv')
+            break
 
-        start_time = time.time()
-        img_mp, faces = mpDetector.findFaceMesh(img.copy(), filtered=True)
-        end_time_mp = (time.time() - start_time) * 1000
-        # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
+        try:
+            start_time = time.time()
+            img_mp, faces = mpDetector.findFaceMesh(img.copy(), filtered=True)
+            end_time_mp = (time.time() - start_time) * 1000
+            # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
 
-        start_time = time.time()
-        img_mp, faces = mpDetector_tracking.findFaceMesh(img.copy(), filtered=True)
-        end_time_mp_tracking = (time.time() - start_time) * 1000
-        # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
+            start_time = time.time()
+            img_mp, faces = mpDetector_tracking.findFaceMesh(img.copy(), filtered=True)
+            end_time_mp_tracking = (time.time() - start_time) * 1000
+            # print('--- Mediapipe benchmark: {} ms'.format((time.time() - start_time) * 1000))
 
-        start_time = time.time()
-        img_mee, results = meeDetector.find_keypoints(img)
-        end_time_mee = (time.time() - start_time) * 1000
-        #print('--- MEE Shape benchmark: {} ms'.format((time.time() - start_time) * 1000))
+            start_time = time.time()
+            img_mee, results = meeDetector.find_keypoints(img)
+            end_time_mee = (time.time() - start_time) * 1000
+            #print('--- MEE Shape benchmark: {} ms'.format((time.time() - start_time) * 1000))
 
-        resized_width = 500
-        resize_mp = ResizeWithAspectRatio(img_mp, width=resized_width) 
-        resize_mee = ResizeWithAspectRatio(img_mee, width=resized_width) 
+            resized_width = 500
+            resize_mp = ResizeWithAspectRatio(img_mp, width=resized_width) 
+            resize_mee = ResizeWithAspectRatio(img_mee, width=resized_width) 
 
-        cv2.imshow("Mediapipe resized", resize_mp)
-        cv2.imshow("MEEShape resized", resize_mee)
+            cv2.imshow("Mediapipe resized", resize_mp)
+            cv2.imshow("MEEShape resized", resize_mee)
 
-        if benchmark_active:
-            df_benchmark = df_benchmark.append({ 'mediapipe': end_time_mp, 'mediapipe_tracking': end_time_mp_tracking, 'meeshape': end_time_mee }, ignore_index=True)
+            if benchmark_active:
+                df_benchmark = df_benchmark.append({ 'mediapipe': end_time_mp, 'mediapipe_tracking': end_time_mp_tracking, 'meeshape': end_time_mee }, ignore_index=True)
+        except:
+            print('Error')
+            continue
 
-        cv2.waitKey(1)
+        cv2.waitKey(10)
     
 if __name__ == '__main__':
     main()

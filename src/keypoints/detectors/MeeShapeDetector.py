@@ -7,7 +7,7 @@ import numpy as np
 
 class MeeShapeDetector():
 
-    def __init__(self, predictor_path='/home/robbedec/repos/ugent/thesis-inwe/notebooks/facial_keypoint/detectors/models/mee_shape_predictor_68_face_landmarks.dat'):
+    def __init__(self, predictor_path='/home/robbedec/repos/ugent/thesis-inwe/src/keypoints/detectors/models/mee_shape_predictor_68_face_landmarks.dat'):
 
         self.face_detector = get_frontal_face_detector()
         self.predictor = shape_predictor(predictor_path)
