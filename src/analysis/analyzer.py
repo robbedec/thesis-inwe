@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib as mpl
 
-from math import asin, pi
+from math import asin, pi, atan2
 from scipy.spatial import ConvexHull
 from matplotlib import pyplot as plt
 
@@ -63,6 +63,8 @@ class StaticAnalyzer():
 
         self._face = self._faces[0]
 
+        #TODO: check euler angles if face is correctly aligned
+
     def estimate_symmetry_line(self, use_iris_estimate=True, use_nose_tip=False, draw=False):
         """
         Finds the equation of the line that connects the two inner corners of
@@ -88,7 +90,7 @@ class StaticAnalyzer():
         (x1, y1) = mean_position([468, 469, 470, 471, 472], self._face) if use_iris_estimate else self._face[133]
         (x2, y2) = mean_position([473, 474, 475, 476, 477], self._face) if use_iris_estimate else self._face[362]
 
-        # Point 168 is halfway between the eyes
+        # Point 168 is halfway between the eyes?
         x_mid, y_mid = self._face[1] if use_nose_tip else ((x1 + x2) / 2, (y1 + y2) / 2)
 
         horizontal_slope = (y2 - y1) / (x2 - x1)
@@ -208,6 +210,11 @@ class StaticAnalyzer():
         line and the projection of the lowest lip point on the symmetry line.
 
         The area on both sides are ratio'd and returned.  
+
+        A second metric calculates the distance between the top center of the lip
+        to the a mouth corner. The result is again the ratio between both sides.
+        This metric is helpful to quantify horizontal displacement of the mouth
+        when the corners are not affected in an unusual way.
         """
 
         slope_h, slope_v, intercept = self.estimate_symmetry_line(draw=self._draw)
@@ -233,11 +240,19 @@ class StaticAnalyzer():
 
 
         # Hoeken geven soms een bereik error
-        #angle_left = asin(dist_point_to_line(slope=slope_v, slope_point=intercept, point=corner_left) / dist_point_to_point(corner_left, chin_corrected)) 
-        #angle_right = asin(dist_point_to_line(slope=slope_v, slope_point=intercept, point=corner_right) / dist_point_to_point(corner_right, chin_corrected)) 
+        """
+        try:
 
-        #print('Mouth angles (radians): left = %.2f, right = %.2f (in radians)' % (angle_left, angle_right))
-        #print('Mouth angles (degrees): left = %.2f, right = %.2f (in radians)' % (angle_left * (180 / pi), angle_right * (180 / pi)))
+            angle_left = atan2(dist_point_to_point(p0=corner_left, p1=base_intersection_left), dist_point_to_point(p0=chin_corrected, p1=base_intersection_left))
+            angle_right = atan2(dist_point_to_point(p0=corner_right, p1=base_intersection_right), dist_point_to_point(p0=chin_corrected, p1=base_intersection_right))
+
+            print('Mouth angles (radians): left = %.2f, right = %.2f (in radians)' % (angle_left, angle_right))
+            print('Mouth angles (degrees): left = %.2f, right = %.2f (in radians)' % (angle_left * (180 / pi), angle_right * (180 / pi)))
+            print('Mouth angles (Ratio): %.2f' % (ratio(angle_left, angle_right)))
+
+        except:
+            pass
+        """
 
         # Distance between the symmetry line and the middle of the top lip
         # This might not work very well because it's not a ratio.
@@ -262,6 +277,9 @@ class StaticAnalyzer():
             # Draw lines between chinpoint and corners of the mouth 
             cv2.line(img=self._img, pt1=corner_left, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
             cv2.line(img=self._img, pt1=corner_right, pt2=rounded_chin_corrected, color=(0, 255, 0), thickness=1)
+            # These lines don't look too good but are a good way to undertand the metric
+            cv2.line(img=self._img, pt1=corner_left, pt2=round_tuple(base_intersection_left), color=(0, 255, 0), thickness=1)
+            cv2.line(img=self._img, pt1=corner_right, pt2=round_tuple(base_intersection_right), color=(0, 255, 0), thickness=1)
         
         return ratio(area_left, area_right), dist_lip_middle
     
@@ -353,7 +371,7 @@ class StaticAnalyzer():
             cv2.drawContours(image=self._img, contours=[box_right], contourIdx=0, color=(0,0,255), thickness=2)
 
             [ cv2.imshow('fold'+str(i), fold) for i, fold in enumerate(fold_maps) ]
-            [ cv2.imwrite('/home/robbedec/Desktop/gabor_fold'+str(i)+'.png', fold) for i, fold in enumerate(fold_maps) ]
+            #[ cv2.imwrite('/home/robbedec/Desktop/gabor_fold'+str(i)+'.png', fold) for i, fold in enumerate(fold_maps) ]
         
         return goodness_of_fit, ratio(sigmas[0], sigmas[1])
     
@@ -409,17 +427,17 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/Downloads/20160601_rustpositie.JPG')
-    analyzer.img = cv2.imread('/home/robbedec/Downloads/after.jpg')
+    #analyzer.img = cv2.imread('/home/robbedec/Downloads/after.jpg')
 
     # Trigger individuel measurements
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
-    #analyzer.quantify_mouth(draw=False)
+    analyzer.quantify_mouth(draw=True)
     #analyzer.quantify_eyes(draw=True)
     #analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
 
     # Trigger all measurements
-    analyzer.resting_symmetry(print_results=True)
+    #analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
     cv2.imwrite('./result_annotations.png', analyzer.img)
