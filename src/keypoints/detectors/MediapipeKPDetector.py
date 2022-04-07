@@ -328,9 +328,6 @@ def main():
 
         # Call landmark generator
         img, faces = detector.findFaceMesh(img, draw_points=True, draw_indices=True, filtered=True, pose_estimation=True)
-        #print(detector.orientation[0])
-        degrees = [x * 180 / np.pi for x in detector.orientation[0]]
-        #print(degrees)
 
         # Calcultate FPS
         if use_video:

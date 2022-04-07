@@ -109,7 +109,7 @@ def create_file():
 
                 row = {
                     'category': flaccid_category,
-                    'identifier': file_identifier,
+                    'identifier': file_identifier  + '_' + str(i + 1),
                     'movement': MEEIMovements(i).name.lower(),
                     'general_cat': 'flaccid'
                 }
@@ -137,7 +137,7 @@ def create_file():
 
                 row = {
                     'category': synkinetic_category,
-                    'identifier': file_identifier,
+                    'identifier': file_identifier + '_' + str(i + 1),
                     'movement': MEEIMovements(i).name.lower(),
                     'general_cat': 'synkinetic' 
                 }

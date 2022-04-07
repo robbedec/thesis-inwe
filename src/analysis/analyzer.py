@@ -426,21 +426,21 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
-    #analyzer.img = cv2.imread('/home/robbedec/Downloads/20160601_rustpositie.JPG')
+    analyzer.img = cv2.imread('/home/robbedec/Downloads/20160601_rustpositie.JPG')
     #analyzer.img = cv2.imread('/home/robbedec/Downloads/after.jpg')
 
     # Trigger individuel measurements
     #analyzer.estimate_symmetry_line(draw=True)
     #analyzer.quantify_eyebrows(draw=False)
-    analyzer.quantify_mouth(draw=True)
+    #analyzer.quantify_mouth(draw=True)
     #analyzer.quantify_eyes(draw=True)
     #analyzer.nasolabial_fold(draw=True, peak_correction=True, display_hist=True)
 
     # Trigger all measurements
-    #analyzer.resting_symmetry(print_results=True)
+    analyzer.resting_symmetry(print_results=True)
 
     cv2.imshow('result', analyzer.img)
-    cv2.imwrite('./result_annotations.png', analyzer.img)
+    #cv2.imwrite('./result_annotations.png', analyzer.img)
     cv2.waitKey(0)
 
 if __name__ == "__main__":
