@@ -1,16 +1,48 @@
 import pandas as pd
 import cv2
+import matplotlib as mlp
 import matplotlib.pyplot as plt
+import os
+import numpy as np
+
+from scipy import stats
 
 from src.analysis.analyzer import StaticAnalyzer
-from src.analysis.enums import Measurements
+from src.analysis.enums import Measurements, MEEIMovements
 from src.utils.util import resize_with_aspectratio
 
 class VideoAnalyzer():
-    def __init__(self, video_path, csv_path=None):
+    def __init__(self, video_path, csv_path='./video_analysis_results.csv', rolling_window=0):
         self._cap = cv2.VideoCapture(video_path)
         self._static_analyzer = StaticAnalyzer(mp_static_mode=False)
         self._csv_path = csv_path
+
+        if not os.path.exists(self._csv_path):
+            # Create csv file with measurements if it does not exist
+            self.process_video()
+        else:
+            self._df_results = pd.read_csv(self._csv_path)
+
+        # Apply a moving average to remove sudden changes between subsequent frames.
+        # These can be attested to inaccuracies by the model.
+        #if rolling_window > 0:
+        #    self._df_results = self._df_results.rolling(window=rolling_window).mean()
+        #    # Rolling creates NaN values for the first (rolling_window - 1) entries
+        #    # because it cant create an average.
+        #    self._df_results = self._df_results.dropna()
+
+        # Group results from frames together for every second
+        # The resulting dataframe contains one aggregated entry for every second of the video.
+        # TODO: This may be better suited in the audiogram function to preserve the raw overview function.
+        # TODO: 1 second may be too fast to capture facial movement, consider e.g. 500ms.
+        fps = self._cap.get(cv2.CAP_PROP_FPS)
+
+        use_harmonic_mean = False
+        if use_harmonic_mean:
+            self._df_results = self._df_results.groupby(np.arange(len(self._df_results)) // fps).agg(lambda x: stats.hmean(x))
+        else:
+            self._df_results = self._df_results.groupby(np.arange(len(self._df_results)) // fps).mean()
+
 
     def process_video(self):
         # Prepare dataframe
@@ -21,7 +53,9 @@ class VideoAnalyzer():
 
             if not success:
                 # End of video reached
-                df_video.to_csv(self._csv_path if csv_path is not None else './test_normal.csv')
+                df_video.to_csv(self._csv_path)
+                #self._df_results = pd.read_csv(self._csv_path)
+                self._df_results = df_video
                 break
 
             self._static_analyzer.img = frame
@@ -50,13 +84,10 @@ class VideoAnalyzer():
             cv2.imshow('video', resize_with_aspectratio(frame, width=400))
             cv2.waitKey(1)
 
-
-    def results(self, single_plot=True):
+    def score_overview(self, single_plot=True):
         if self._csv_path is None:
             raise AttributeError('Provide the path to a valid csv file.')
         
-        df_results = pd.read_csv(self._csv_path)
-
         measurements_categories = [e_cat.name for e_cat in Measurements]
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
@@ -66,20 +97,63 @@ class VideoAnalyzer():
         for i, cat in enumerate(measurements_categories):
             selected_color = colors[i % len(colors)]
             if single_plot:
-                axs[i].plot(df_results[cat], c=selected_color)
+                # Axis settings
+                axs[i].plot(self._df_results[cat], c=selected_color)
                 axs[i].set_title(cat, fontsize=8)
-                #plt.subplots_adjust(hspace=1.5)
+                axs[i].set_ylim([0,1])
+
+                # Figure settings
                 #fig.set_dpi(200)
                 fig.tight_layout()
                 fig.set_size_inches(18.5, 10.5)
 
+                #plt.subplots_adjust(hspace=1.5)
+                axs[i].axhline(y=0.5, color='black', linewidth=0.5) # Draw midline
+
             else:
-                plt.plot(df_results[cat], c=selected_color)
+                plt.plot(self._df_results[cat], c=selected_color)
                 plt.title(cat)
                 plt.xlabel('frame number')
                 plt.figure()
 
         plt.show()
+    
+    def audiogram(self, movement: MEEIMovements):
+        target = []
+
+        if MEEIMovements.EYEBROWS == movement:
+            target = [x.name for x in [
+                Measurements.EYEBROW_EYE_DISTANCE,
+                Measurements.EYEBROW_HORIZONTAL_DISTANCE,
+                Measurements.EYEBROW_INTERCEPT_DISTANCE,
+            ]]
+
+        synkinetic = [cat.name for cat in Measurements if cat.name not in target]
+
+        # Create new dataframe with aggregated results
+        df_movement = pd.DataFrame()
+        for index, row in self._df_results.iterrows():
+            # This variable will contain 2 values, the harmonic mean of the target
+            # scores and that of the synkinetic scores.
+            data = []
+            for col_names in [target, synkinetic]:
+                data.append(stats.hmean([row[cname] for cname in col_names]))
+
+            df_movement = df_movement.append({ 'target': data[0], 'synkinetic': data[1] }, ignore_index=True)
+            data.clear()
+        
+        # marker=mlp.markers.CARETDOWNBASE
+        plt.plot(df_movement, marker='.')
+        plt.legend(df_movement.columns, loc='best')
+        plt.grid(b=True, which='major', color='#666666', linestyle='-')
+
+        plt.xticks(np.arange(start=0, stop=len(df_movement), step=5))
+        plt.yticks(np.arange(start=0, stop=1.25, step=0.25))
+
+        plt.title('Movement: ' + movement.name)
+
+        plt.show()
+
 
 if __name__ == '__main__':
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
@@ -91,8 +165,9 @@ if __name__ == '__main__':
     videoanalyzer = VideoAnalyzer(video_path=video_path, csv_path=csv_path)
 
     #videoanalyzer.process_video()
-    videoanalyzer.results()
+    #videoanalyzer.score_overview()
     #videoanalyzer.display_frame([1199, 2531])
+    videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
 
     # Video that shows mouth movement
     #videoanalyzer.resume_video_from_frame(1400)
