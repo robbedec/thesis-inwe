@@ -1,6 +1,5 @@
 import pandas as pd
 import cv2
-import matplotlib as mlp
 import matplotlib.pyplot as plt
 import os
 import numpy as np
@@ -18,7 +17,7 @@ class VideoAnalyzer():
             self,
             movement: MEEIMovements,
             video_path,
-            csv_path='./video_analysis_results.csv',
+            csv_path,
             process_video=True,
             rolling_window=0
         ):
@@ -60,7 +59,6 @@ class VideoAnalyzer():
             self._df_results = self._df_results.groupby(np.arange(len(self._df_results)) // fps).agg(lambda x: stats.hmean(x))
         else:
             self._df_results = self._df_results.groupby(np.arange(len(self._df_results)) // fps).mean()
-
 
     def process_video(self, df_input=pd.DataFrame()):
         # Prepare dataframe
@@ -186,14 +184,15 @@ class VideoAnalyzer():
         plt.show()
     
     
-    def radarplot(self, video_ids):
+    def radarplot(self, video_ids=[]):
         # https://plotly.com/python/radar-chart/
         # For different renderers https://plotly.com/python/renderers/
 
         # Or instead of .mean(), use .agg(lambda x: stats.hmean(x)) for harmonic mean.
-        df_data = self._df_results.loc[self._df_results['video_id'].isin(video_ids)][[c.name for c in Measurements] + ['video_id']]
-        df_data = df_data.groupby('video_id').mean()
-        # df_data = df_data.groupby('video_id').agg(lambda x: stats.hmean(x))
+        # TODO: Filter further so it only contains rows with the correct movement. This may be redundant because every row with the same video_id has the same measurement.
+        df_data = self._df_results_original.loc[(self._df_results_original['video_id'].isin(video_ids)) | (len(video_ids) == 0)][[c.name for c in Measurements] + ['video_id']]
+        #df_data = df_data.groupby('video_id').mean()
+        df_data = df_data.groupby('video_id').agg(lambda x: stats.hmean(x))
 
         # TODO: Give better names
         # Append first item so the figure closes.
@@ -212,7 +211,7 @@ class VideoAnalyzer():
                 r=dl,
                 theta=categories,
                 #fill='toself',
-                name='Meting ' + str(index + 1),
+                name='Meting ' + str(int(index + 1)),
             ))
 
         fig.update_layout(
@@ -222,7 +221,14 @@ class VideoAnalyzer():
                     range=[0, 1],
                 )
             ),
-            showlegend=False,
+            showlegend=True,
+            title={
+                'text': 'Movement: ' + self._movement.name,
+                'xanchor': 'center',
+                'yanchor': 'top', 
+                'y':0.95,
+                'x':0.48,
+            },
         )
 
         fig.show()
@@ -230,22 +236,22 @@ class VideoAnalyzer():
 if __name__ == '__main__':
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
 
-    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (1).MPG'
-    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160914 (6) oefening.MPG'
-    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (3).MPG'
+    # Tuiten van de lippen, voor en na therapie.
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (5).MPG'
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20180812 (5).MPG'
 
     csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
 
     #video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal8/Normal8.mp4'
     #csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video_normal.csv'
 
-    videoanalyzer = VideoAnalyzer(movement=MEEIMovements.EYEBROWS, video_path=video_path, csv_path=csv_path, process_video=True)
+    videoanalyzer = VideoAnalyzer(movement=MEEIMovements.LIP_PUCKER, video_path=video_path, csv_path=csv_path, process_video=False)
 
     #videoanalyzer.process_video()
     #videoanalyzer.score_overview()
     #videoanalyzer.display_frame([1199, 2531])
     #videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
-    videoanalyzer.radarplot(video_ids=[0, 1, 2])
+    videoanalyzer.radarplot(video_ids=[])
 
     # Video that shows mouth movement
     #videoanalyzer.resume_video_from_frame(1400)
