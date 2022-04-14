@@ -4,12 +4,15 @@ import matplotlib as mlp
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 
 from scipy import stats
 
 from src.analysis.analyzer import StaticAnalyzer
 from src.analysis.enums import Measurements, MEEIMovements
-from src.utils.util import resize_with_aspectratio
+from src.utils.util import resize_with_aspectratio, radar_factory
+
 
 class VideoAnalyzer():
     def __init__(self, video_path, csv_path='./video_analysis_results.csv', rolling_window=0):
@@ -21,7 +24,9 @@ class VideoAnalyzer():
             # Create csv file with measurements if it does not exist
             self.process_video()
         else:
-            self._df_results = pd.read_csv(self._csv_path)
+            self._df_results = pd.read_csv(self._csv_path, index_col=0)
+        
+        self._df_results_original = self._df_results.copy()
 
         # Apply a moving average to remove sudden changes between subsequent frames.
         # These can be attested to inaccuracies by the model.
@@ -153,7 +158,45 @@ class VideoAnalyzer():
         plt.title('Movement: ' + movement.name)
 
         plt.show()
+    
+    
+    def radarplot(self):
+        # https://plotly.com/python/radar-chart/
 
+        #data = self._df_results_original.agg(lambda x: stats.hmean(x))
+        #data = self._df_results_original.mean()
+        df_data = self._df_results[:1]
+
+        # TODO: Give better names
+        # Append first item so the figure closes.
+        categories = self._df_results.columns.to_list()
+        categories.append(categories[0])
+
+        # Init figure
+        fig = go.Figure()
+
+        for index, row in df_data.iterrows():
+            dl = row.to_list()
+            dl.append(dl[0])
+
+            # Do in loop over rows of data is patient has been measured multiple times
+            fig.add_trace(go.Scatterpolar(
+                r=dl,
+                theta=categories,
+                #fill='toself',
+                name='Meting ' + str(index + 1),
+            ))
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                visible=True,
+                range=[0, 1],
+                )),
+            showlegend=False,
+        )
+
+        fig.show()
 
 if __name__ == '__main__':
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
@@ -167,7 +210,8 @@ if __name__ == '__main__':
     #videoanalyzer.process_video()
     #videoanalyzer.score_overview()
     #videoanalyzer.display_frame([1199, 2531])
-    videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
+    #videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
+    videoanalyzer.radarplot()
 
     # Video that shows mouth movement
     #videoanalyzer.resume_video_from_frame(1400)
