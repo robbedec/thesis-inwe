@@ -4,27 +4,40 @@ import matplotlib as mlp
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 
 from scipy import stats
 
 from src.analysis.analyzer import StaticAnalyzer
 from src.analysis.enums import Measurements, MEEIMovements
-from src.utils.util import resize_with_aspectratio, radar_factory
+from src.utils.util import resize_with_aspectratio
 
 
 class VideoAnalyzer():
-    def __init__(self, video_path, csv_path='./video_analysis_results.csv', rolling_window=0):
+    def __init__(
+            self,
+            movement: MEEIMovements,
+            video_path,
+            csv_path='./video_analysis_results.csv',
+            process_video=True,
+            rolling_window=0
+        ):
+
         self._cap = cv2.VideoCapture(video_path)
         self._static_analyzer = StaticAnalyzer(mp_static_mode=False)
         self._csv_path = csv_path
+
+        # Check if movement exist in Enum
+        self._movement = movement
 
         if not os.path.exists(self._csv_path):
             # Create csv file with measurements if it does not exist
             self.process_video()
         else:
             self._df_results = pd.read_csv(self._csv_path, index_col=0)
+            
+            if process_video:
+                self.process_video(df_input=self._df_results)
         
         self._df_results_original = self._df_results.copy()
 
@@ -49,9 +62,11 @@ class VideoAnalyzer():
             self._df_results = self._df_results.groupby(np.arange(len(self._df_results)) // fps).mean()
 
 
-    def process_video(self):
+    def process_video(self, df_input=pd.DataFrame()):
         # Prepare dataframe
-        df_video = pd.DataFrame()
+        df_video = df_input
+
+        session_id = 0 if len(df_video.index) == 0 else df_video['video_id'].nunique()
 
         while True:
             success, frame = self._cap.read()
@@ -59,16 +74,27 @@ class VideoAnalyzer():
             if not success:
                 # End of video reached
                 df_video.to_csv(self._csv_path)
-                #self._df_results = pd.read_csv(self._csv_path)
                 self._df_results = df_video
+
                 break
 
-            self._static_analyzer.img = frame
+            # Calculate scores for the frame
+            try:
+                self._static_analyzer.img = frame
+                frame_results = self._static_analyzer.resting_symmetry()
+            except:
+                print("Not able to detect a face in the frame")
+                continue
 
-            frame_results = self._static_analyzer.resting_symmetry()
+            df_video = df_video.append({
+                **{ key.name: value for key, value in frame_results.items() },
+                **{
+                    'video_id': session_id,
+                    'movement': self._movement,
+                    # Maybe add date field
+                }
+            }, ignore_index=True)
 
-            df_video = df_video.append({ key.name: value for key, value in frame_results.items()}, ignore_index=True) 
-    
     def display_frame(self, frames=[]):
         for frame_index in frames:
             self._cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
@@ -160,16 +186,18 @@ class VideoAnalyzer():
         plt.show()
     
     
-    def radarplot(self):
+    def radarplot(self, video_ids):
         # https://plotly.com/python/radar-chart/
+        # For different renderers https://plotly.com/python/renderers/
 
-        #data = self._df_results_original.agg(lambda x: stats.hmean(x))
-        #data = self._df_results_original.mean()
-        df_data = self._df_results[:1]
+        # Or instead of .mean(), use .agg(lambda x: stats.hmean(x)) for harmonic mean.
+        df_data = self._df_results.loc[self._df_results['video_id'].isin(video_ids)][[c.name for c in Measurements] + ['video_id']]
+        df_data = df_data.groupby('video_id').mean()
+        # df_data = df_data.groupby('video_id').agg(lambda x: stats.hmean(x))
 
         # TODO: Give better names
         # Append first item so the figure closes.
-        categories = self._df_results.columns.to_list()
+        categories = df_data.columns.to_list()
         categories.append(categories[0])
 
         # Init figure
@@ -190,9 +218,10 @@ class VideoAnalyzer():
         fig.update_layout(
             polar=dict(
                 radialaxis=dict(
-                visible=True,
-                range=[0, 1],
-                )),
+                    visible=True,
+                    range=[0, 1],
+                )
+            ),
             showlegend=False,
         )
 
@@ -200,18 +229,23 @@ class VideoAnalyzer():
 
 if __name__ == '__main__':
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
-    csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video.csv'
+
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (1).MPG'
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160914 (6) oefening.MPG'
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (3).MPG'
+
+    csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
 
     #video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal8/Normal8.mp4'
     #csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video_normal.csv'
 
-    videoanalyzer = VideoAnalyzer(video_path=video_path, csv_path=csv_path)
+    videoanalyzer = VideoAnalyzer(movement=MEEIMovements.EYEBROWS, video_path=video_path, csv_path=csv_path, process_video=True)
 
     #videoanalyzer.process_video()
     #videoanalyzer.score_overview()
     #videoanalyzer.display_frame([1199, 2531])
     #videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
-    videoanalyzer.radarplot()
+    videoanalyzer.radarplot(video_ids=[0, 1, 2])
 
     # Video that shows mouth movement
     #videoanalyzer.resume_video_from_frame(1400)
