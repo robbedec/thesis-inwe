@@ -1,0 +1,20 @@
+#!/bin/bash
+# Usage: ./Taskfile <fname>
+
+function mpdetector {
+
+}
+
+function threshold {
+
+}
+
+function static_analyzer {
+
+}
+
+function video_analyzer {
+
+}
+
+"$@"
