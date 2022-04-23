@@ -42,8 +42,6 @@ class StaticAnalyzer():
             self.load_img(img)
         else:
             # Load default image
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/robbedec_bw.jpg'))
-            #self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/src/images/obama.jpg'))
             self.load_img(cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1_6.jpg'))
     
     def load_img(self, img):
@@ -426,8 +424,20 @@ def main():
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/SevereFlaccid/SevereFlaccid2/SevereFlaccid2_6.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid2/CompleteFlaccid2_1.jpg')
     #analyzer.img = cv2.imread('/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal9/Normal9_1.jpg')
-    analyzer.img = cv2.imread('/home/robbedec/Downloads/20160601_rustpositie.JPG')
-    #analyzer.img = cv2.imread('/home/robbedec/Downloads/after.jpg')
+
+    """
+    # Measurements on a live video stream
+    cap = cv2.VideoCapture(0)
+    while True:
+        _, img = cap.read()
+        analyzer.img = img
+
+        analyzer.resting_symmetry(print_results=True)
+
+        cv2.imshow('result', analyzer.img)
+
+        cv2.waitKey(1)
+    """
 
     # Trigger individuel measurements
     #analyzer.estimate_symmetry_line(draw=True)
