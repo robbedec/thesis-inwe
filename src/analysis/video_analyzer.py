@@ -42,17 +42,18 @@ class VideoAnalyzer():
 
         # Apply a moving average to remove sudden changes between subsequent frames.
         # These can be attested to inaccuracies by the model.
-        #if rolling_window > 0:
-        #    self._df_results = self._df_results.rolling(window=rolling_window).mean()
-        #    # Rolling creates NaN values for the first (rolling_window - 1) entries
-        #    # because it cant create an average.
-        #    self._df_results = self._df_results.dropna()
+        if rolling_window > 0:
+            self._df_results = self._df_results.rolling(window=rolling_window).mean()
+            # Rolling creates NaN values for the first (rolling_window - 1) entries
+            # because it cant create an average.
+            self._df_results = self._df_results.dropna()
 
         # Group results from frames together for every second
         # The resulting dataframe contains one aggregated entry for every second of the video.
         # TODO: This may be better suited in the audiogram function to preserve the raw overview function.
         # TODO: 1 second may be too fast to capture facial movement, consider e.g. 500ms.
-        fps = self._cap.get(cv2.CAP_PROP_FPS)
+        fps = self._cap.get(cv2.CAP_PROP_FPS) / 2
+        fps=1
 
         use_harmonic_mean = False
         if use_harmonic_mean:
@@ -113,12 +114,14 @@ class VideoAnalyzer():
             cv2.imshow('video', resize_with_aspectratio(frame, width=400))
             cv2.waitKey(1)
 
-    def score_overview(self, single_plot=True):
+    def score_overview(self, single_plot=True, rolling_window=0):
         if self._csv_path is None:
             raise AttributeError('Provide the path to a valid csv file.')
         
         measurements_categories = [e_cat.name for e_cat in Measurements]
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+        data = self._df_results_original.rolling(window=rolling_window).mean() if rolling_window > 0 else self._df_results_original
 
         if single_plot:
             fig, axs = plt.subplots(len(measurements_categories))
@@ -127,7 +130,7 @@ class VideoAnalyzer():
             selected_color = colors[i % len(colors)]
             if single_plot:
                 # Axis settings
-                axs[i].plot(self._df_results[cat], c=selected_color)
+                axs[i].plot(data[cat], c=selected_color)
                 axs[i].set_title(cat, fontsize=8)
                 axs[i].set_ylim([0,1])
 
@@ -137,10 +140,10 @@ class VideoAnalyzer():
                 fig.set_size_inches(18.5, 10.5)
 
                 #plt.subplots_adjust(hspace=1.5)
-                axs[i].axhline(y=0.5, color='black', linewidth=0.5) # Draw midline
+                axs[i].axhline(y=0.5, color='black', linewidth=0.5, linestyle='--') # Draw midline
 
             else:
-                plt.plot(self._df_results[cat], c=selected_color)
+                plt.plot(data[cat], c=selected_color)
                 plt.title(cat)
                 plt.xlabel('frame number')
                 plt.figure()
@@ -234,25 +237,20 @@ class VideoAnalyzer():
         fig.show()
 
 if __name__ == '__main__':
+    # Video volledige verlamming
     video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/CompleteFlaccid/CompleteFlaccid1/CompleteFlaccid1.mp4'
+    csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/CompleteFlaccid1.csv'
+
+    # Video normal
+    # video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal8/Normal8.mp4'
+    # csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/Normal8.csv'
 
     # Tuiten van de lippen, voor en na therapie.
-    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (5).MPG'
-    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20180812 (5).MPG'
-
-    csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
-
-    #video_path = '/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Normals/Normal8/Normal8.mp4'
-    #csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/test_video_normal.csv'
+    # video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (5).MPG'
+    # video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20180812 (5).MPG'
+    # csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
 
     videoanalyzer = VideoAnalyzer(movement=MEEIMovements.LIP_PUCKER, video_path=video_path, csv_path=csv_path, process_video=False)
-
-    #videoanalyzer.process_video()
-    #videoanalyzer.score_overview()
-    #videoanalyzer.display_frame([1199, 2531])
+    videoanalyzer.score_overview(rolling_window=10)
     #videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
-    videoanalyzer.radarplot(video_ids=[])
-
-    # Video that shows mouth movement
-    #videoanalyzer.resume_video_from_frame(1400)
-    #videoanalyzer.resume_video_from_frame(900)
+    #videoanalyzer.radarplot(video_ids=[])
