@@ -19,10 +19,13 @@ cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = 20 #cap.get(cv2.CAP_PROP_FPS)
 
 # Define the codec and create VideoWriter object
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(OUTPUT, fourcc, 20.0, (640,  480))
+out = cv2.VideoWriter(OUTPUT, fourcc, fps, (width, height))
 
 detector = MediapipeKPDetector()
   
@@ -57,6 +60,8 @@ while(True):
 
     # Display the resulting frame
     cv2.imshow('frame', dst)
+
+    # TODO: Use arrowed line to show which direction to follow.
 
     if cv2.waitKey(1) == 27:
         break
