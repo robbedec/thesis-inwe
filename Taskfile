@@ -2,19 +2,25 @@
 # Usage: ./Taskfile <fname>
 
 function mpdetector {
-
+    echo ""
 }
 
 function threshold {
-
+    echo ""
 }
 
 function static_analyzer {
-
+    echo ""
 }
 
 function video_analyzer {
+    echo ""
+}
 
+function create_recording {
+    python3 src/samples/videocapture.py \
+        -p "/home/robbedec/repos/ugent/thesis-inwe/videos" \
+        -n "test.avi"
 }
 
 "$@"

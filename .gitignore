@@ -1,4 +1,7 @@
 data/
+videos/
+*.avi
+*.mp4
 */.vscode/
 
 # Jupyter notebook
