@@ -52,8 +52,8 @@ class VideoAnalyzer():
         # The resulting dataframe contains one aggregated entry for every second of the video.
         # TODO: This may be better suited in the audiogram function to preserve the raw overview function.
         # TODO: 1 second may be too fast to capture facial movement, consider e.g. 500ms.
-        fps = self._cap.get(cv2.CAP_PROP_FPS) / 2
-        fps=1
+        fps = self._cap.get(cv2.CAP_PROP_FPS) #/ 2
+        #fps=1
 
         use_harmonic_mean = False
         if use_harmonic_mean:
@@ -150,7 +150,7 @@ class VideoAnalyzer():
 
         plt.show()
     
-    def audiogram(self, movement: MEEIMovements):
+    def audiogram(self, movement: MEEIMovements, video_id):
         target = []
 
         if MEEIMovements.EYEBROWS == movement:
@@ -159,12 +159,17 @@ class VideoAnalyzer():
                 Measurements.EYEBROW_HORIZONTAL_DISTANCE,
                 Measurements.EYEBROW_INTERCEPT_DISTANCE,
             ]]
+        elif MEEIMovements.LIP_PUCKER == movement:
+            target = [x.name for x in [
+                Measurements.MOUTH_AREA,
+                Measurements.LIPCENTER_OFFSET,
+            ]]
 
         synkinetic = [cat.name for cat in Measurements if cat.name not in target]
 
         # Create new dataframe with aggregated results
         df_movement = pd.DataFrame()
-        for index, row in self._df_results.iterrows():
+        for index, row in self._df_results[self._df_results['video_id'] == video_id].iterrows():
             # This variable will contain 2 values, the harmonic mean of the target
             # scores and that of the synkinetic scores.
             data = []
@@ -177,6 +182,60 @@ class VideoAnalyzer():
         # marker=mlp.markers.CARETDOWNBASE
         plt.plot(df_movement, marker='.')
         plt.legend(df_movement.columns, loc='best')
+        plt.grid(b=True, which='major', color='#666666', linestyle='-')
+
+        plt.xticks(np.arange(start=0, stop=len(df_movement), step=5))
+        plt.yticks(np.arange(start=0, stop=1.25, step=0.25))
+
+        plt.title('Movement: ' + movement.name)
+
+        plt.show()
+
+    def audiogramV2(self, movement: MEEIMovements, video_id):
+        target = []
+
+        if MEEIMovements.EYEBROWS == movement:
+            target = [x.name for x in [
+                Measurements.EYEBROW_EYE_DISTANCE,
+                Measurements.EYEBROW_HORIZONTAL_DISTANCE,
+                Measurements.EYEBROW_INTERCEPT_DISTANCE,
+            ]]
+        elif MEEIMovements.LIP_PUCKER == movement:
+            target = [x.name for x in [
+                Measurements.MOUTH_AREA,
+                Measurements.LIPCENTER_OFFSET,
+            ]]
+
+        synkinetic = [cat.name for cat in Measurements if cat.name not in target]
+
+        # Create new dataframe with aggregated results
+        df_movement = pd.DataFrame()
+        for index, row in self._df_results[self._df_results['video_id'] == video_id].iterrows():
+            target_agg = stats.hmean([row[cname] for cname in target])
+            others = [row[cname] for cname in synkinetic]
+            
+            #print(target_agg, others)
+
+            df_movement = df_movement.append({ 'target': target_agg, 'synkinetic': others }, ignore_index=True)
+        
+        # marker=mlp.markers.CARETDOWNBASE
+
+        # Plot target line
+        plt.plot(df_movement.iloc[:, 0], marker='.')
+
+
+        # Loop over the other categories
+        colors = ['#8c564b', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+        for i, x in enumerate(df_movement.iloc[:, 1]):
+            plt.scatter(x=np.full(len(x), i), y=x, s=17, c=colors)
+
+        # Fix legend and its colors.
+        plt.legend(['TARGET: ' + ', '.join(target)] + synkinetic, loc='best')
+        ax = plt.gca()
+        leg = ax.get_legend()
+        for i in range(len(synkinetic)):
+            leg.legendHandles[i + 1].set_color(colors[i])
+
         plt.grid(b=True, which='major', color='#666666', linestyle='-')
 
         plt.xticks(np.arange(start=0, stop=len(df_movement), step=5))
@@ -247,10 +306,11 @@ if __name__ == '__main__':
 
     # Tuiten van de lippen, voor en na therapie.
     # video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160601 (5).MPG'
-    # video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20180812 (5).MPG'
-    # csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
+    #video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20160711 (5).MPG'
+    video_path = '/media/robbedec/BACKUP/ugent/master/masterproef/data/patienten_liesbet/20180812 (5).MPG'
+    csv_path = '/home/robbedec/repos/ugent/thesis-inwe/src/analysis/csv/patient1.csv'
 
     videoanalyzer = VideoAnalyzer(movement=MEEIMovements.LIP_PUCKER, video_path=video_path, csv_path=csv_path, process_video=False)
-    videoanalyzer.score_overview(rolling_window=10)
-    #videoanalyzer.audiogram(movement=MEEIMovements.EYEBROWS)
+    #videoanalyzer.score_overview(rolling_window=10)
+    videoanalyzer.audiogramV2(movement=MEEIMovements.LIP_PUCKER, video_id=1)
     #videoanalyzer.radarplot(video_ids=[])
