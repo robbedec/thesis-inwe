@@ -2,7 +2,19 @@
 # Usage: ./Taskfile <fname>
 
 function mpdetector {
-    echo ""
+    type='video'
+    path=''
+
+    if [[ $# -eq 0 ]]; then
+        type='static'
+        path='/home/robbedec/repos/ugent/thesis-inwe/data/MEEI_Standard_Set/Flaccid/MildFlaccid/MildFlaccid1/MildFlaccid1_1.jpg'
+    else
+        path="$1"
+    fi
+
+    python3 src/keypoints/detectors/MediapipeKPDetector.py \
+        -i "${path}"
+        -t "${type}"
 }
 
 function threshold {
